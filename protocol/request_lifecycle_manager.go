@@ -45,13 +45,15 @@ type requestState[T IDConstraint] struct {
 	lastActivity time.Time
 }
 
-// Close stops all active timers for the request.
-func (s *requestState[T]) Close() {
+// stop stops all active timers for the request.
+func (s *requestState[T]) stop() {
 	if s.softTimer != nil {
 		s.softTimer.Stop()
+		s.softTimer = nil
 	}
 	if s.maximumTimer != nil {
 		s.maximumTimer.Stop()
+		s.maximumTimer = nil
 	}
 }
 
@@ -236,8 +238,7 @@ func (m *RequestLifecycleManager[T]) StopAll(wait bool) []IDType[T] {
 	m.mu.Lock()
 	ids := make([]IDType[T], 0, len(m.requests))
 	for id, state := range m.requests {
-		state.softTimer.Stop()
-		state.maximumTimer.Stop()
+		state.stop()
 		ids = append(ids, id)
 	}
 	m.requests = make(map[IDType[T]]*requestState[T])
@@ -284,7 +285,7 @@ func (m *RequestLifecycleManager[T]) cleanupRequest(id IDType[T]) bool {
 		return false
 	}
 
-	state.Close()
+	state.stop()
 
 	delete(m.requests, id)
 	m.wg.Done()
