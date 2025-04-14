@@ -30,10 +30,9 @@ jobs:
 
     - name: SonarCloud Scan
       uses: SonarSource/sonarcloud-github-action@v2
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       with:
-        organization: "marketconnect"
-        projectKey: "marketconnect_mcp-go"
-        token: ${{ secrets.SONAR_TOKEN }}
         args: >
           -Dsonar.projectKey=marketconnect_mcp-go
           -Dsonar.organization=marketconnect
