@@ -189,28 +189,28 @@ func NewErrorResponseFromError[T IDConstraint, R any](id IDType[T], rpcErr *RPCE
 //	}
 func (r JSONRPCResponse[T, R]) Validate() error {
 	if r.JSONRPC != JSONRPCVersion {
-		return ValidationError{Reason: fmt.Sprintf("invalid JSON-RPC version: expected %q, got %q", JSONRPCVersion, r.JSONRPC)}
+		return &ValidationError{Reason: fmt.Sprintf("invalid JSON-RPC version: expected %q, got %q", JSONRPCVersion, r.JSONRPC)}
 	}
 
 	if r.ID.IsEmpty() {
-		return ValidationError{Reason: "response ID must not be empty"}
+		return &ValidationError{Reason: "response ID must not be empty"}
 	}
 
 	// MCP / JSON-RPC rule: must have exactly one of result or error
 	if r.Result != nil && r.Error != nil {
-		return ValidationError{Reason: "response MUST NOT contain both result and error"}
+		return &ValidationError{Reason: "response MUST NOT contain both result and error"}
 	}
 	if r.Result == nil && r.Error == nil {
-		return ValidationError{Reason: "response MUST contain either result or error"}
+		return &ValidationError{Reason: "response MUST contain either result or error"}
 	}
 
 	// Validate error object if present
 	if r.Error != nil {
 		if r.Error.Code == 0 {
-			return ValidationError{Reason: "error code must be non-zero integer"}
+			return &ValidationError{Reason: "error code must be non-zero integer"}
 		}
 		if r.Error.Message == "" {
-			return ValidationError{Reason: "error message must not be empty"}
+			return &ValidationError{Reason: "error message must not be empty"}
 		}
 	}
 

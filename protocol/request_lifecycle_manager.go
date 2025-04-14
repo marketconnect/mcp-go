@@ -138,10 +138,11 @@ func (m *RequestLifecycleManager[T]) StartRequest(
 	m.usedIDs[id] = struct{}{}
 
 	if softTimeout <= 0 {
-		return ErrSoftTimeoutMustBePositive
+
+		return ErrSoftTimeoutNotPositive
 	}
 	if maximumTimeout <= 0 {
-		return ErrMaximumTimeoutMustBePositive
+		return ErrMaximumTimeoutNotPositive
 	}
 	if softTimeout > maximumTimeout {
 		return ErrSoftTimeoutExceedsMaximum
@@ -176,7 +177,7 @@ func (m *RequestLifecycleManager[T]) StartRequest(
 //   - The provided callback is nil.
 func (m *RequestLifecycleManager[T]) UpdateCallback(id IDType[T], newCallback func(IDType[T], TimeoutType)) error {
 	if newCallback == nil {
-		return ErrNilTimeoutCallback
+		return ErrCallbackNil
 	}
 
 	m.mu.Lock()
