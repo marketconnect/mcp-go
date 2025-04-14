@@ -127,6 +127,10 @@ func (m *RequestLifecycleManager[T]) StartRequest(
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	if id.IsEmpty() {
+		return ErrEmptyRequestID
+	}
+
 	if _, used := m.usedIDs[id]; used {
 		return ErrDuplicateRequestID
 	}

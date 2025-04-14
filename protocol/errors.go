@@ -1,8 +1,16 @@
 package protocol
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 var (
+	// ErrInvalidID is returned when the ID in the JSON is invalid.
+	ErrInvalidID = errors.New("invalid ID")
+
+	// ErrEmptyRequestID is returned when the request ID is empty.
+	ErrEmptyRequestID = errors.New("lifecycle: request ID cannot be empty")
 	// ErrSoftTimeoutMustBePositive is returned when the soft timeout is not a positive duration.
 	ErrSoftTimeoutMustBePositive = errors.New("soft timeout must be greater than zero")
 
@@ -64,4 +72,16 @@ type ValidationError struct {
 // It returns the reason for the validation failure.
 func (e ValidationError) Error() string {
 	return e.Reason
+}
+
+type InvalidIDError struct {
+	Err error
+}
+
+func (e *InvalidIDError) Error() string {
+	return fmt.Sprintf("%v: %v", ErrInvalidID, e.Err)
+}
+
+func (e *InvalidIDError) Unwrap() error {
+	return e.Err
 }

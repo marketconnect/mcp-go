@@ -130,10 +130,10 @@ func (id IDType[T]) MarshalJSON() ([]byte, error) {
 //	}
 func (id *IDType[T]) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &id.Value); err != nil {
-		return err
+		return &InvalidIDError{Err: err}
 	}
 	if id.IsEmpty() {
-		return fmt.Errorf("ID cannot be empty")
+		return ErrEmptyRequestID
 	}
 	return nil
 }
