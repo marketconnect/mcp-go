@@ -239,7 +239,7 @@ func TestIDType_UnmarshalJSON_EmptyID(t *testing.T) {
 }
 func TestIDType_UnmarshalJSON_InvalidJSON(t *testing.T) {
 	var id IDType[int]
-	data := []byte(`{}`) // Валидный JSON, но не int
+	data := []byte(`{}`)
 
 	err := json.Unmarshal(data, &id)
 
