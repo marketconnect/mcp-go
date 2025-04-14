@@ -2,12 +2,15 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
   build:
+    name: Build and Test
     runs-on: ubuntu-latest
 
     steps:
@@ -17,16 +20,22 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v4
       with:
-        go-version: '1.23'
+        go-version: '1.21'
 
     - name: Install dependencies
       run: go mod tidy
 
-    - name: Run tests with race detector
+    - name: Run tests with race detector and coverage
       run: go test -race -coverprofile=coverage.out ./...
 
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v4
+    - name: SonarCloud Scan
+      uses: SonarSource/sonarcloud-github-action@v2
       with:
-        files: ./coverage.out
-        flags: unittests
+        organization: "marketconnect"
+        projectKey: "marketconnect_mcp-go"
+        token: ${{ secrets.SONAR_TOKEN }}
+        args: >
+          -Dsonar.projectKey=marketconnect_mcp-go
+          -Dsonar.organization=marketconnect
+          -Dsonar.go.coverage.reportPaths=coverage.out
+          -Dsonar.sources=.
