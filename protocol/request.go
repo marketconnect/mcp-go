@@ -93,20 +93,6 @@ func (r JSONRPCRequest[T]) Validate() error {
 	return nil
 }
 
-// MarshalJSON implements the json.Marshaler interface.
-//
-// It ensures that the JSON-RPC request is correctly serialized
-// according to the MCP/JSON-RPC specification.
-// The ID field is marshaled as a primitive value, not as a nested object.
-// func (r JSONRPCRequest[T]) MarshalJSON() ([]byte, error) {
-// 	type Alias JSONRPCRequest[T]
-// 	return json.Marshal(&struct {
-// 		Alias
-// 	}{
-// 		Alias: (Alias)(r),
-// 	})
-// }
-
 // UnmarshalJSON implements the json.Unmarshaler interface.
 //
 // It parses the JSON-RPC request from JSON data and validates its correctness.
@@ -133,8 +119,13 @@ func (r *JSONRPCRequest[T]) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
-	*r = JSONRPCRequest[T](aux.Alias)
-	return r.Validate()
+	temp := JSONRPCRequest[T](aux.Alias)
+	if err := temp.Validate(); err != nil {
+		return err
+	}
+	*r = temp
+	return nil
+
 }
 
 // GetID returns the raw ID value of the request.

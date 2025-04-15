@@ -100,15 +100,15 @@ func NewRPCError(code int, message string, data interface{}) *RPCError {
 //	}
 //
 //	result := &SumResult{Total: 42}
-//	response := NewSuccessResponse(NewID("req-123"), result)
+//	response := NewSuccessResponse("req-123", result)
 //	fmt.Printf("%+v\n", response)
 //
 // Returns:
 //   - JSONRPCResponse[T, R]: a populated successful response object.
-func NewSuccessResponse[T IDConstraint, R any](id IDType[T], result *R) JSONRPCResponse[T, R] {
+func NewSuccessResponse[T IDConstraint, R any](id T, result *R) JSONRPCResponse[T, R] {
 	return JSONRPCResponse[T, R]{
 		JSONRPC: JSONRPCVersion,
-		ID:      id,
+		ID:      NewID(id),
 		Result:  result,
 	}
 }
@@ -205,38 +205,12 @@ func (r JSONRPCResponse[T, R]) Validate() error {
 	}
 
 	// Validate error object if present
-	if r.Error != nil {
-		if r.Error.Code == 0 {
-			return &ValidationError{Reason: "error code must be non-zero integer"}
-		}
-		if r.Error.Message == "" {
-			return &ValidationError{Reason: "error message must not be empty"}
-		}
+	if r.Error != nil && r.Error.Message == "" {
+		return &ValidationError{Reason: "error must contain non-empty message"}
 	}
 
 	return nil
 }
-
-// MarshalJSON serializes the JSONRPCResponse into JSON format according to MCP/JSON-RPC 2.0 specifications.
-//
-// This method allows for custom serialization behavior if needed in the future.
-// Currently, it behaves identically to the standard JSON marshaling.
-//
-// Note:
-//   - If no special behavior is required, the default encoding/json marshaler is sufficient.
-//   - This method is kept for consistency and potential extensibility.
-//
-// Returns:
-//   - A JSON-encoded byte slice representing the response.
-//   - An error, if serialization fails.
-// func (r JSONRPCResponse[T, R]) MarshalJSON() ([]byte, error) {
-// 	type Alias JSONRPCResponse[T, R]
-// 	return json.Marshal(&struct {
-// 		Alias
-// 	}{
-// 		Alias: (Alias)(r),
-// 	})
-// }
 
 // UnmarshalJSON deserializes the JSON data into a JSONRPCResponse object,
 // and validates the response according to MCP/JSON-RPC specifications.
@@ -271,8 +245,13 @@ func (r *JSONRPCResponse[T, R]) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	*r = JSONRPCResponse[T, R](aux.Alias)
-	return r.Validate()
+	temp := JSONRPCResponse[T, R](aux.Alias)
+	if err := temp.Validate(); err != nil {
+		return err
+	}
+	*r = temp
+	return nil
+
 }
 
 // GetID returns the underlying raw value of the response ID.
