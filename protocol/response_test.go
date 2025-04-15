@@ -34,7 +34,7 @@ func TestNewSuccessResponse(t *testing.T) {
 
 func TestNewErrorResponse(t *testing.T) {
 
-	resp := protocol.NewErrorResponse[string, any](protocol.NewID("req-1"), -32601, "not found", nil)
+	resp := protocol.NewErrorResponse[string, any](protocol.NewID("req-1"), -32601, "Method not found", nil)
 
 	if resp.Error == nil {
 		t.Fatal("expected error, got nil")
