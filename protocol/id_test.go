@@ -37,7 +37,7 @@ func TestNewID(t *testing.T) {
 	}
 }
 
-func TestNextIntID_Uniqueness(t *testing.T) {
+func TestNextIntIDUniqueness(t *testing.T) {
 	id1 := protocol.NextIntID()
 	id2 := protocol.NextIntID()
 
@@ -46,7 +46,7 @@ func TestNextIntID_Uniqueness(t *testing.T) {
 	}
 }
 
-func TestNextIntID_Concurrency(t *testing.T) {
+func TestNextIntIDConcurrency(t *testing.T) {
 	const goroutines = 100
 	ids := make(chan int64, goroutines)
 
@@ -73,7 +73,7 @@ func TestNextIntID_Concurrency(t *testing.T) {
 	}
 }
 
-func TestNextStringID_Uniqueness(t *testing.T) {
+func TestNextStringIDUniqueness(t *testing.T) {
 	id1 := protocol.NextStringID()
 	id2 := protocol.NextStringID()
 
@@ -82,7 +82,7 @@ func TestNextStringID_Uniqueness(t *testing.T) {
 	}
 }
 
-func TestIDType_IsEmpty(t *testing.T) {
+func TestIDTypeIsEmpty(t *testing.T) {
 	tests := []struct {
 		name     string
 		id       interface{}
@@ -108,7 +108,7 @@ func TestIDType_IsEmpty(t *testing.T) {
 		})
 	}
 }
-func TestIDType_Equal(t *testing.T) {
+func TestIDTypeEqual(t *testing.T) {
 	tests := []struct {
 		name     string
 		id1      interface{}
@@ -139,7 +139,7 @@ func TestIDType_Equal(t *testing.T) {
 	}
 }
 
-func TestIDType_String(t *testing.T) {
+func TestIDTypeString(t *testing.T) {
 	tests := []struct {
 		name     string
 		id       interface{}
@@ -165,7 +165,7 @@ func TestIDType_String(t *testing.T) {
 	}
 }
 
-func TestIDType_MarshalJSON(t *testing.T) {
+func TestIDTypeMarshalJSON(t *testing.T) {
 	tests := []struct {
 		name     string
 		id       interface{}
@@ -194,7 +194,7 @@ func TestIDType_MarshalJSON(t *testing.T) {
 		})
 	}
 }
-func TestIDType_UnmarshalJSON(t *testing.T) {
+func TestIDTypeUnmarshalJSON(t *testing.T) {
 	var id protocol.IDType[int]
 	data := []byte("42")
 	if err := json.Unmarshal(data, &id); err != nil {
@@ -214,7 +214,7 @@ func TestIDType_UnmarshalJSON(t *testing.T) {
 	}
 }
 
-func TestIDType_UnmarshalJSON_EmptyID(t *testing.T) {
+func TestIDTypeUnmarshalJSON_EmptyID(t *testing.T) {
 	var id protocol.IDType[int]
 	data := []byte("0")
 	err := json.Unmarshal(data, &id)
@@ -239,7 +239,7 @@ func TestIDType_UnmarshalJSON_EmptyID(t *testing.T) {
 		t.Errorf("expected ErrEmptyRequestID, got %v", err)
 	}
 }
-func TestIDType_UnmarshalJSON_InvalidJSON(t *testing.T) {
+func TestIDTypeUnmarshalJSON_InvalidJSON(t *testing.T) {
 	var id protocol.IDType[int]
 	data := []byte(`{}`)
 

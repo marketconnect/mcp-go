@@ -41,7 +41,7 @@ func TestNewRequestWithID(t *testing.T) {
 	}
 }
 
-func TestRequest_Validate(t *testing.T) {
+func TestRequestValidate(t *testing.T) {
 	validReq := protocol.NewRequest("sum", 123, nil)
 	if err := validReq.Validate(); err != nil {
 		t.Errorf("expected no error, got %v", err)
@@ -80,7 +80,7 @@ func TestRequest_Validate(t *testing.T) {
 	}
 }
 
-func TestRequest_UnmarshalJSON(t *testing.T) {
+func TestRequestUnmarshalJSON(t *testing.T) {
 	jsonData := `{
 		"jsonrpc": "2.0",
 		"method": "sum",
@@ -107,7 +107,7 @@ func TestRequest_UnmarshalJSON(t *testing.T) {
 	}
 }
 
-func TestRequest_MarshalUnmarshalJSON(t *testing.T) {
+func TestRequestMarshalUnmarshalJSON(t *testing.T) {
 	original := protocol.NewRequest("sum", 123, map[string]interface{}{"a": 1, "b": 2})
 
 	data, err := json.Marshal(original)
@@ -129,7 +129,7 @@ func TestRequest_MarshalUnmarshalJSON(t *testing.T) {
 	}
 }
 
-func TestRequest_GetID(t *testing.T) {
+func TestRequestGetID(t *testing.T) {
 	req := protocol.NewRequest("sum", 789, nil)
 	if got := req.GetID(); got != 789 {
 		t.Errorf("expected ID 789, got %v", got)

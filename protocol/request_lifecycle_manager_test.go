@@ -26,7 +26,7 @@ func waitForGeneric[T any](ch <-chan T, timeout time.Duration) (T, bool) {
 	}
 }
 
-func TestRequestLifecycle_SuccessStartAndComplete(t *testing.T) {
+func TestRequestLifecycleSuccessStartAndComplete(t *testing.T) {
 	var timeoutCalled bool
 	id := newTestID("req-1")
 
@@ -51,7 +51,7 @@ func TestRequestLifecycle_SuccessStartAndComplete(t *testing.T) {
 	}
 }
 
-func TestRequestLifecycle_DuplicateID(t *testing.T) {
+func TestRequestLifecycleDuplicateID(t *testing.T) {
 	id := newTestID("dup")
 
 	mgr := protocol.NewRequestLifecycleManager[testID](context.Background())
@@ -64,7 +64,7 @@ func TestRequestLifecycle_DuplicateID(t *testing.T) {
 	}
 }
 
-func TestRequestLifecycle_SoftTimeoutFires(t *testing.T) {
+func TestRequestLifecycleSoftTimeoutFires(t *testing.T) {
 	id := newTestID("timeout-soft")
 	fired := make(chan protocol.TimeoutType, 1)
 
@@ -85,7 +85,7 @@ func TestRequestLifecycle_SoftTimeoutFires(t *testing.T) {
 	}
 }
 
-func TestRequestLifecycle_MaxTimeoutFires(t *testing.T) {
+func TestRequestLifecycleMaxTimeoutFires(t *testing.T) {
 	id := newTestID("timeout-max")
 	fired := make(chan protocol.TimeoutType, 1)
 
@@ -107,7 +107,7 @@ func TestRequestLifecycle_MaxTimeoutFires(t *testing.T) {
 	}
 }
 
-func TestRequestLifecycle_UpdateCallback(t *testing.T) {
+func TestRequestLifecycleUpdateCallback(t *testing.T) {
 	id := newTestID("change-cb")
 
 	var mu sync.Mutex
@@ -139,7 +139,7 @@ func TestRequestLifecycle_UpdateCallback(t *testing.T) {
 	}
 }
 
-func TestRequestLifecycle_ResetTimeout(t *testing.T) {
+func TestRequestLifecycleResetTimeout(t *testing.T) {
 	id := newTestID("reset-test")
 	fired := make(chan protocol.TimeoutType, 1)
 
@@ -159,7 +159,7 @@ func TestRequestLifecycle_ResetTimeout(t *testing.T) {
 	}
 }
 
-func TestRequestLifecycle_StopAll(t *testing.T) {
+func TestRequestLifecycleStopAll(t *testing.T) {
 	id := newTestID("stopall")
 	fired := make(chan protocol.TimeoutType, 1)
 
@@ -175,7 +175,7 @@ func TestRequestLifecycle_StopAll(t *testing.T) {
 	}
 }
 
-func TestRequestLifecycle_CallbackPanicRecovery(t *testing.T) {
+func TestRequestLifecycleCallbackPanicRecovery(t *testing.T) {
 	id := newTestID("panic")
 	panicked := make(chan struct{})
 
