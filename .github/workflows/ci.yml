@@ -25,8 +25,12 @@ jobs:
     - name: Install dependencies
       run: go mod tidy
 
+
     - name: Run tests with race detector and coverage
-      run: go test -race -coverprofile=coverage.out ./...
+      run: |
+        go test -race -coverprofile=coverage.out ./...
+        sed -i 's|github.com/marketconnect/mcp-go/||g' coverage.out
+    
 
     - name: SonarCloud Scan
       uses: SonarSource/sonarcloud-github-action@v2
