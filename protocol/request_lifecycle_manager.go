@@ -79,22 +79,37 @@ type RequestLifecycleManager[T IDConstraint] struct {
 	cancel context.CancelFunc
 
 	wg sync.WaitGroup
+
+	onError func(IDType[T], error)
+}
+
+type RequestLifecycleOption[T IDConstraint] func(*RequestLifecycleManager[T])
+
+func WithErrorHandler[T IDConstraint](fn func(IDType[T], error)) RequestLifecycleOption[T] {
+	return func(m *RequestLifecycleManager[T]) {
+		m.onError = fn
+	}
 }
 
 // NewRequestLifecycleManager creates and returns a new RequestLifecycleManager.
 // Call StopAll() when the manager is no longer needed to clean up resources.
-func NewRequestLifecycleManager[T IDConstraint](ctx context.Context) *RequestLifecycleManager[T] {
+func NewRequestLifecycleManager[T IDConstraint](ctx context.Context, opts ...RequestLifecycleOption[T]) *RequestLifecycleManager[T] {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	ctx, cancel := context.WithCancel(ctx)
 
-	return &RequestLifecycleManager[T]{
+	manager := &RequestLifecycleManager[T]{
 		requests: make(map[IDType[T]]*requestState[T]),
 		usedIDs:  make(map[IDType[T]]struct{}),
 		ctx:      ctx,
 		cancel:   cancel,
 	}
+
+	for _, opt := range opts {
+		opt(manager)
+	}
+	return manager
 }
 
 // Done returns a channel that's closed when the manager is stopped.
@@ -111,6 +126,7 @@ func (m *RequestLifecycleManager[T]) Len() int {
 }
 
 // StartRequest begins tracking a new request with the given ID and timeout durations.
+// MCP: Request IDs MUST be unique per session. This is enforced by this method.
 //
 // The softTimeout triggers a warning or cancellation notification if the request takes too long.
 // The maximumTimeout forcefully cleans up the request state.
@@ -124,12 +140,16 @@ func (m *RequestLifecycleManager[T]) StartRequest(
 	maximumTimeout time.Duration,
 	onTimeout func(IDType[T], TimeoutType),
 ) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+
+	if onTimeout == nil {
+		return ErrCallbackNil
+	}
 
 	if id.IsEmpty() {
 		return ErrEmptyRequestID
 	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
 
 	if _, used := m.usedIDs[id]; used {
 		return ErrDuplicateRequestID
@@ -211,7 +231,9 @@ func (m *RequestLifecycleManager[T]) ResetTimeout(id IDType[T]) error {
 	}
 
 	if state.softTimer != nil {
-		state.softTimer.Stop()
+		if !state.softTimer.Stop() {
+			return nil
+		}
 	}
 
 	state.softTimer = time.AfterFunc(state.softTimeout, func() {
@@ -272,9 +294,15 @@ func (m *RequestLifecycleManager[T]) triggerCallback(state *requestState[T], t T
 	if m.cleanupRequest(state.id) {
 		defer func() {
 			if r := recover(); r != nil {
-				fmt.Printf("Request %v callback panicked: %v\n", state.id, r)
+				err := fmt.Errorf("callback panic: %v", r)
+				if m.onError != nil {
+					m.onError(state.id, err)
+				} else {
+					fmt.Printf("Request %v callback panicked: %v\n", state.id, r)
+				}
 			}
 		}()
+
 		onTimeoutCopy(state.id, t)
 	}
 }
