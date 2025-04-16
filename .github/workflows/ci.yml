@@ -28,8 +28,8 @@ jobs:
 
     - name: Run tests with race detector and coverage
       run: |
-        go test -race -coverprofile=coverage.out ./...
-        sed -i 's|github.com/marketconnect/mcp-go/||g' coverage.out
+          go test -race -coverprofile=coverage.out ./...
+      
     
 
     - name: SonarCloud Scan
