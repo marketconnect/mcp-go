@@ -56,12 +56,16 @@ func TestRequestLifecycleDuplicateID(t *testing.T) {
 	mgr := protocol.NewRequestLifecycleManager[testID](context.Background())
 
 	// First call should succeed (initial request registration).
-	if err := mgr.StartRequest(id, time.Second, 2*time.Second, func(_ protocol.IDType[testID], _ protocol.TimeoutType) {}); err != nil {
+	if err := mgr.StartRequest(id, time.Second, 2*time.Second, func(_ protocol.IDType[testID], _ protocol.TimeoutType) {
+		// No-op: not expecting timeouts in this test
+	}); err != nil {
 		t.Fatalf("unexpected error on first StartRequest: %v", err)
 	}
 
 	// Second call with same ID should fail with ErrDuplicateRequestID.
-	err := mgr.StartRequest(id, time.Second, 2*time.Second, func(_ protocol.IDType[testID], _ protocol.TimeoutType) {})
+	err := mgr.StartRequest(id, time.Second, 2*time.Second, func(_ protocol.IDType[testID], _ protocol.TimeoutType) {
+		// No-op: we just want to trigger duplicate ID error
+	})
 	if !errors.Is(err, protocol.ErrDuplicateRequestID) {
 		t.Errorf("expected ErrDuplicateRequestID, got: %v", err)
 	}
