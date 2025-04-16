@@ -214,7 +214,7 @@ func TestIDTypeUnmarshalJSON(t *testing.T) {
 	}
 }
 
-func TestIDTypeUnmarshalJSON_EmptyID(t *testing.T) {
+func TestIDTypeUnmarshalJSONEmptyID(t *testing.T) {
 	var id protocol.IDType[int]
 	data := []byte("0")
 	err := json.Unmarshal(data, &id)
@@ -239,7 +239,7 @@ func TestIDTypeUnmarshalJSON_EmptyID(t *testing.T) {
 		t.Errorf("expected ErrEmptyRequestID, got %v", err)
 	}
 }
-func TestIDTypeUnmarshalJSON_InvalidJSON(t *testing.T) {
+func TestIDTypeUnmarshalJSONInvalidJSON(t *testing.T) {
 	var id protocol.IDType[int]
 	data := []byte(`{}`)
 
