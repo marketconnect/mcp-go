@@ -25,12 +25,9 @@ jobs:
     - name: Install dependencies
       run: go mod tidy
 
-
     - name: Run tests with race detector and coverage
       run: |
-          go test -race -coverprofile=coverage.out ./...
-      
-    
+        go test -race -coverprofile=coverage.out ./...
 
     - name: SonarCloud Scan
       uses: SonarSource/sonarcloud-github-action@v2
@@ -42,3 +39,4 @@ jobs:
           -Dsonar.organization=marketconnect
           -Dsonar.go.coverage.reportPaths=coverage.out
           -Dsonar.sources=.
+          -Dsonar.newCode.referenceBranch=main
