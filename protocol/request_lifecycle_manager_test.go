@@ -198,3 +198,127 @@ func TestRequestLifecycleCallbackPanicRecovery(t *testing.T) {
 		t.Fatalf("panic recovery handler was not called")
 	}
 }
+
+func TestTimeoutTypeString(t *testing.T) {
+	tests := []struct {
+		tt   protocol.TimeoutType
+		want string
+	}{
+		{protocol.SoftTimeout, "SoftTimeout"},
+		{protocol.MaximumTimeout, "MaximumTimeout"},
+		{protocol.TimeoutType(999), "UnknownTimeout"},
+	}
+
+	for _, tc := range tests {
+		got := tc.tt.String()
+		if got != tc.want {
+			t.Errorf("TimeoutType(%d).String() = %q; want %q", tc.tt, got, tc.want)
+		}
+	}
+}
+
+func TestRequestLifecycleManagerDone(t *testing.T) {
+	manager := protocol.NewRequestLifecycleManager[string](context.Background())
+	doneCh := manager.Done()
+
+	select {
+	case <-doneCh:
+		t.Fatal("Expected Done channel to be open initially")
+	default:
+	}
+
+	manager.StopAll(false)
+
+	select {
+	case <-doneCh:
+		// Expected: channel should be closed after StopAll
+	default:
+		t.Fatal("Expected Done channel to be closed after StopAll")
+	}
+}
+
+func TestStartRequestErrors(t *testing.T) {
+	manager := protocol.NewRequestLifecycleManager[string](context.Background())
+
+	tests := []struct {
+		name           string
+		id             protocol.IDType[string]
+		softTimeout    time.Duration
+		maximumTimeout time.Duration
+		onTimeout      func(protocol.IDType[string], protocol.TimeoutType)
+		wantErr        error
+	}{
+		{
+			name:           "nil callback",
+			id:             protocol.NewID("req-nil"),
+			softTimeout:    time.Second,
+			maximumTimeout: 2 * time.Second,
+			onTimeout:      nil,
+			wantErr:        protocol.ErrCallbackNil,
+		},
+		{
+			name:           "empty ID",
+			id:             protocol.IDType[string]{},
+			softTimeout:    time.Second,
+			maximumTimeout: 2 * time.Second,
+			onTimeout:      func(protocol.IDType[string], protocol.TimeoutType) {},
+			wantErr:        protocol.ErrEmptyRequestID,
+		},
+		{
+			name:           "non-positive soft timeout",
+			id:             protocol.NewID("req-soft0"),
+			softTimeout:    0,
+			maximumTimeout: time.Second,
+			onTimeout:      func(protocol.IDType[string], protocol.TimeoutType) {},
+			wantErr:        protocol.ErrSoftTimeoutNotPositive,
+		},
+		{
+			name:           "non-positive maximum timeout",
+			id:             protocol.NewID("req-max0"),
+			softTimeout:    time.Second,
+			maximumTimeout: 0,
+			onTimeout:      func(protocol.IDType[string], protocol.TimeoutType) {},
+			wantErr:        protocol.ErrMaximumTimeoutNotPositive,
+		},
+		{
+			name:           "soft timeout exceeds maximum",
+			id:             protocol.NewID("req-bad"),
+			softTimeout:    3 * time.Second,
+			maximumTimeout: 2 * time.Second,
+			onTimeout:      func(protocol.IDType[string], protocol.TimeoutType) {},
+			wantErr:        protocol.ErrSoftTimeoutExceedsMaximum,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := manager.StartRequest(tc.id, tc.softTimeout, tc.maximumTimeout, tc.onTimeout)
+			if err != tc.wantErr {
+				t.Errorf("Expected error %v, got %v", tc.wantErr, err)
+			}
+		})
+	}
+}
+
+func TestUpdateCallbackErrors(t *testing.T) {
+	manager := protocol.NewRequestLifecycleManager[string](context.Background())
+	id := protocol.NewID("req-1")
+
+	// Попытка обновить callback до регистрации запроса
+	err := manager.UpdateCallback(id, func(protocol.IDType[string], protocol.TimeoutType) {})
+	if err != protocol.ErrRequestNotFound {
+		t.Errorf("Expected ErrRequestNotFound, got %v", err)
+	}
+
+	// Регистрация запроса
+	err = manager.StartRequest(id, time.Second, 2*time.Second, func(protocol.IDType[string], protocol.TimeoutType) {})
+	if err != nil {
+		t.Fatalf("Failed to start request: %v", err)
+	}
+
+	// Попытка обновить callback с nil
+	err = manager.UpdateCallback(id, nil)
+	if err != protocol.ErrCallbackNil {
+		t.Errorf("Expected ErrCallbackNil, got %v", err)
+	}
+}
