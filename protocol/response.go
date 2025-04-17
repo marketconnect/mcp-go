@@ -236,16 +236,16 @@ func (r *JSONRPCResponse[T, R]) UnmarshalJSON(data []byte) error {
 		return errors.New("empty JSON data")
 	}
 
-	type Alias JSONRPCResponse[T, R]
+	type responseNoMethods JSONRPCResponse[T, R]
 	aux := &struct {
-		Alias
+		responseNoMethods
 	}{}
 
 	if err := json.Unmarshal(data, aux); err != nil {
 		return err
 	}
 
-	temp := JSONRPCResponse[T, R](aux.Alias)
+	temp := JSONRPCResponse[T, R](aux.responseNoMethods)
 	if err := temp.Validate(); err != nil {
 		return err
 	}

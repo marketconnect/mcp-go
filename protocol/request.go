@@ -112,14 +112,14 @@ func (r *JSONRPCRequest[T]) UnmarshalJSON(data []byte) error {
 		return errors.New("empty JSON data")
 	}
 
-	type Alias JSONRPCRequest[T]
+	type requestNoMethods JSONRPCRequest[T]
 	aux := &struct {
-		Alias
+		requestNoMethods
 	}{}
 	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
-	temp := JSONRPCRequest[T](aux.Alias)
+	temp := JSONRPCRequest[T](aux.requestNoMethods)
 	if err := temp.Validate(); err != nil {
 		return err
 	}
