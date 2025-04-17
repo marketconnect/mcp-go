@@ -55,16 +55,14 @@ func TestRequestLifecycleDuplicateID(t *testing.T) {
 	id := newTestID("dup")
 	mgr := protocol.NewRequestLifecycleManager[testID](context.Background())
 
-	// First call should succeed (initial request registration).
 	if err := mgr.StartRequest(id, time.Second, 2*time.Second, func(_ protocol.IDType[testID], _ protocol.TimeoutType) {
-		// No-op: not expecting timeouts in this test
+
 	}); err != nil {
 		t.Fatalf("unexpected error on first StartRequest: %v", err)
 	}
 
-	// Second call with same ID should fail with ErrDuplicateRequestID.
 	err := mgr.StartRequest(id, time.Second, 2*time.Second, func(_ protocol.IDType[testID], _ protocol.TimeoutType) {
-		// No-op: we just want to trigger duplicate ID error
+
 	})
 	if !errors.Is(err, protocol.ErrDuplicateRequestID) {
 		t.Errorf("expected ErrDuplicateRequestID, got: %v", err)
@@ -104,7 +102,6 @@ func TestRequestLifecycleMaxTimeoutFires(t *testing.T) {
 		t.Fatalf("start error: %v", err)
 	}
 
-	// Ожидаем максимум таймаут
 	typ, ok := waitForGeneric(fired, 100*time.Millisecond)
 	if !ok {
 		t.Fatalf("timeout did not fire")
@@ -231,7 +228,7 @@ func TestRequestLifecycleManagerDone(t *testing.T) {
 
 	select {
 	case <-doneCh:
-		// Expected: channel should be closed after StopAll
+
 	default:
 		t.Fatal("Expected Done channel to be closed after StopAll")
 	}
@@ -304,19 +301,16 @@ func TestUpdateCallbackErrors(t *testing.T) {
 	manager := protocol.NewRequestLifecycleManager[string](context.Background())
 	id := protocol.NewID("req-1")
 
-	// Попытка обновить callback до регистрации запроса
 	err := manager.UpdateCallback(id, func(protocol.IDType[string], protocol.TimeoutType) {})
 	if err != protocol.ErrRequestNotFound {
 		t.Errorf("Expected ErrRequestNotFound, got %v", err)
 	}
 
-	// Регистрация запроса
 	err = manager.StartRequest(id, time.Second, 2*time.Second, func(protocol.IDType[string], protocol.TimeoutType) {})
 	if err != nil {
 		t.Fatalf("Failed to start request: %v", err)
 	}
 
-	// Попытка обновить callback с nil
 	err = manager.UpdateCallback(id, nil)
 	if err != protocol.ErrCallbackNil {
 		t.Errorf("Expected ErrCallbackNil, got %v", err)
@@ -340,7 +334,6 @@ func TestResetTimeoutStopReturnsFalse(t *testing.T) {
 
 	blocker := make(chan struct{})
 
-	// Коллбэк будет ждать, чтобы softTimer не успел вызвать triggerCallback
 	err := manager.StartRequest(id, 200*time.Millisecond, 2*time.Second, func(protocol.IDType[string], protocol.TimeoutType) {
 		<-blocker
 	})
@@ -348,16 +341,14 @@ func TestResetTimeoutStopReturnsFalse(t *testing.T) {
 		t.Fatalf("start request failed: %v", err)
 	}
 
-	// Спим немного, но не дожидаемся таймера — он уже активирован
 	time.Sleep(100 * time.Millisecond)
 
-	// Здесь softTimer ещё жив, но вот мы вызовем ResetTimeout — и Stop() вернёт true или false (в зависимости от точного времени)
 	err = manager.ResetTimeout(id)
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
 
-	close(blocker) // Разрешаем коллбэку завершиться
+	close(blocker)
 }
 
 func TestActiveIDs(t *testing.T) {
@@ -382,4 +373,27 @@ func TestActiveIDs(t *testing.T) {
 	if !found["id-1"] || !found["id-2"] {
 		t.Errorf("Expected both IDs in active list, got %v", ids)
 	}
+}
+
+func TestResetTimeoutStopReturnsFalsePath(t *testing.T) {
+	manager := protocol.NewRequestLifecycleManager[string](context.Background())
+
+	id := protocol.NewID("soft-stop-false")
+	block := make(chan struct{})
+
+	err := manager.StartRequest(id, 150*time.Millisecond, 2*time.Second, func(protocol.IDType[string], protocol.TimeoutType) {
+		<-block
+	})
+	if err != nil {
+		t.Fatalf("start failed: %v", err)
+	}
+
+	time.Sleep(50 * time.Millisecond)
+
+	err = manager.ResetTimeout(id)
+	if err != nil {
+		t.Errorf("Expected no error when Stop() returns false, got %v", err)
+	}
+
+	close(block)
 }
