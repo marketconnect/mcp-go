@@ -322,3 +322,64 @@ func TestUpdateCallbackErrors(t *testing.T) {
 		t.Errorf("Expected ErrCallbackNil, got %v", err)
 	}
 }
+
+func TestResetTimeoutErrors(t *testing.T) {
+	manager := protocol.NewRequestLifecycleManager[string](context.Background())
+
+	id := protocol.NewID("not-exist")
+	err := manager.ResetTimeout(id)
+	if err != protocol.ErrRequestNotFound {
+		t.Errorf("Expected ErrRequestNotFound, got %v", err)
+	}
+}
+
+func TestResetTimeoutStopReturnsFalse(t *testing.T) {
+	manager := protocol.NewRequestLifecycleManager[string](context.Background())
+
+	id := protocol.NewID("req1")
+
+	blocker := make(chan struct{})
+
+	// Коллбэк будет ждать, чтобы softTimer не успел вызвать triggerCallback
+	err := manager.StartRequest(id, 200*time.Millisecond, 2*time.Second, func(protocol.IDType[string], protocol.TimeoutType) {
+		<-blocker
+	})
+	if err != nil {
+		t.Fatalf("start request failed: %v", err)
+	}
+
+	// Спим немного, но не дожидаемся таймера — он уже активирован
+	time.Sleep(100 * time.Millisecond)
+
+	// Здесь softTimer ещё жив, но вот мы вызовем ResetTimeout — и Stop() вернёт true или false (в зависимости от точного времени)
+	err = manager.ResetTimeout(id)
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+
+	close(blocker) // Разрешаем коллбэку завершиться
+}
+
+func TestActiveIDs(t *testing.T) {
+	manager := protocol.NewRequestLifecycleManager[string](context.Background())
+
+	id1 := protocol.NewID("id-1")
+	id2 := protocol.NewID("id-2")
+
+	manager.StartRequest(id1, time.Second, 2*time.Second, func(protocol.IDType[string], protocol.TimeoutType) {})
+	manager.StartRequest(id2, time.Second, 2*time.Second, func(protocol.IDType[string], protocol.TimeoutType) {})
+
+	ids := manager.ActiveIDs()
+	if len(ids) != 2 {
+		t.Fatalf("Expected 2 active IDs, got %d", len(ids))
+	}
+
+	found := map[string]bool{}
+	for _, id := range ids {
+		found[id.String()] = true
+	}
+
+	if !found["id-1"] || !found["id-2"] {
+		t.Errorf("Expected both IDs in active list, got %v", ids)
+	}
+}
