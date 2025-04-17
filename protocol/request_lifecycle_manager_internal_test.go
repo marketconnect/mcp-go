@@ -95,3 +95,28 @@ func TestStopAllWaitTriggersWaitGroup(t *testing.T) {
 		t.Errorf("StopAll returned too early: %v", elapsed)
 	}
 }
+func TestResetTimeout_TimerStopReturnsFalse(t *testing.T) {
+	manager := NewRequestLifecycleManager[string](context.Background())
+
+	id := NewID("reset-false-stop")
+
+	timer := time.NewTimer(1 * time.Millisecond)
+	time.Sleep(10 * time.Millisecond)
+
+	state := &requestState[string]{
+		id:        id,
+		softTimer: timer,
+		onTimeout: func(IDType[string], TimeoutType) {},
+	}
+
+	manager.requests[id] = state
+	manager.usedIDs[id] = struct{}{}
+	manager.wg.Add(1)
+
+	err := manager.ResetTimeout(id)
+	if err != nil {
+		t.Errorf("Expected no error when Stop returns false, got: %v", err)
+	}
+
+	manager.cleanupRequest(id)
+}
