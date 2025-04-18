@@ -2,14 +2,13 @@ package protocol
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 )
 
 const JSONRPCVersion = "2.0"
 
-type JSONRPCRequest[T IDConstraint] struct {
+type jsonRPCRequest[T IDConstraint] struct {
 	// A String specifying the version of the JSON-RPC protocol. MUST be exactly "2.0".
 	JSONRPC string `json:"jsonrpc"`
 	// A String containing the name of the method to be invoked.
@@ -20,65 +19,20 @@ type JSONRPCRequest[T IDConstraint] struct {
 	// This member MAY be omitted.
 	Params interface{} `json:"params,omitempty"` // optional parameters
 
-	ID IDType[T] `json:"id"`
+	ID ID[T] `json:"id"`
 }
 
-// NewRequest creates a new JSON-RPC request with the given method name, raw ID, and parameters.
-//
-// This is the primary constructor for creating requests.
-// It accepts a raw ID value (string or integer) and automatically wraps it in an IDType.
-//
-// Example:
-//
-//	req := protocol.NewRequest("sum", 123, map[string]interface{}{"a": 1, "b": 2})
-//
-// For guaranteed unique IDs, you can use NextIntID or NextStringID:
-//
-//	req := protocol.NewRequest("sum", protocol.NextIntID().Value, params)
-//
-// If you already have an IDType, consider using NewRequestWithID.
-//
-// See also: NewRequestWithID for advanced use cases.
-func NewRequest[T IDConstraint](method string, id T, params interface{}) JSONRPCRequest[T] {
-	return JSONRPCRequest[T]{
-		JSONRPC: JSONRPCVersion,
-		ID:      NewID(id),
-		Method:  method,
-		Params:  params,
-	}
-}
-
-// NewRequestWithID creates a new JSON-RPC request with a pre-wrapped IDType.
-//
-// This constructor is useful when you already have an IDType[T],
-// for example, when using custom ID generators or session managers.
-//
-// For most cases, prefer NewRequest, which accepts a raw ID value (string or int).
-//
-// Example:
-//
-//	id := protocol.NextIntID()
-//	req := protocol.NewRequestWithID("sum", id, map[string]interface{}{"a": 1, "b": 2})
-func NewRequestWithID[T IDConstraint](method string, id IDType[T], params interface{}) JSONRPCRequest[T] {
-	return JSONRPCRequest[T]{
-		JSONRPC: JSONRPCVersion,
-		ID:      id,
-		Method:  method,
-		Params:  params,
-	}
-}
-
-// Validate checks if the JSON-RPC request is valid.
-func (r JSONRPCRequest[T]) Validate() error {
+// validate checks if the JSON-RPC request is valid.
+func (r jsonRPCRequest[T]) validate() error {
 	if r.JSONRPC != JSONRPCVersion {
 		return &ValidationError{Reason: fmt.Sprintf("invalid JSON-RPC version: expected %q, got %q", JSONRPCVersion, r.JSONRPC)}
 	}
 
-	if strings.TrimSpace(r.Method) == "" {
+	if len(strings.TrimSpace(r.Method)) == 0 {
 		return &ValidationError{Reason: "method name cannot be empty or whitespace"}
 	}
 
-	if r.ID.IsEmpty() {
+	if r.ID.isEmpty() {
 		return &ValidationError{Reason: "id must not be empty"}
 	}
 
@@ -107,20 +61,20 @@ func (r JSONRPCRequest[T]) Validate() error {
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
-func (r *JSONRPCRequest[T]) UnmarshalJSON(data []byte) error {
+func (r *jsonRPCRequest[T]) UnmarshalJSON(data []byte) error {
 	if len(data) == 0 {
-		return errors.New("empty JSON data")
+		return ErrEmptyJSONData
 	}
 
-	type requestNoMethods JSONRPCRequest[T]
+	type requestNoMethods jsonRPCRequest[T]
 	aux := &struct {
 		requestNoMethods
 	}{}
 	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
-	temp := JSONRPCRequest[T](aux.requestNoMethods)
-	if err := temp.Validate(); err != nil {
+	temp := jsonRPCRequest[T](aux.requestNoMethods)
+	if err := temp.validate(); err != nil {
 		return err
 	}
 	*r = temp
@@ -128,15 +82,55 @@ func (r *JSONRPCRequest[T]) UnmarshalJSON(data []byte) error {
 
 }
 
-// GetID returns the raw ID value of the request.
-//
-// Useful when you need to access the request ID for logging, tracking, or matching responses.
+func (r *jsonRPCRequest[T]) GetID() interface{} {
+	return r.ID.Value
+}
+
+func (r *jsonRPCRequest[T]) SetID(v interface{}) error {
+	val, ok := v.(T)
+	if !ok {
+		return ErrInvalidID
+	}
+	r.ID = ID[T]{Value: val}
+	return nil
+}
+
+func (r *jsonRPCRequest[T]) GetMethod() string {
+	return r.Method
+}
+
+func (r *jsonRPCRequest[T]) SetMethod(method string) {
+	r.Method = method
+}
+
+func (r *jsonRPCRequest[T]) GetParams() interface{} {
+	return r.Params
+}
+
+func (r *jsonRPCRequest[T]) SetParams(params interface{}) {
+	r.Params = params
+}
+
+// NewRequest creates a new JSON-RPC request object with the given method, params, and ID.
 //
 // Example:
 //
-//	req := protocol.NewRequest("sum", 123, params)
-//	id := req.GetID()
-//	fmt.Println(id) // Output: 123
-func (r JSONRPCRequest[T]) GetID() T {
-	return r.ID.Value
+//	req := protocol.NewRequest("myMethod", map[string]any{"foo": "bar"}, protocol.NextIntID())
+func NewRequest[T IDConstraint](method string, params interface{}, id ID[T]) Request {
+
+	return &jsonRPCRequest[T]{
+		JSONRPC: JSONRPCVersion,
+		Method:  method,
+		Params:  params,
+		ID:      id,
+	}
+}
+
+type Request interface {
+	GetID() any
+	SetID(any) error
+	GetMethod() string
+	SetMethod(string)
+	GetParams() interface{}
+	SetParams(interface{})
 }

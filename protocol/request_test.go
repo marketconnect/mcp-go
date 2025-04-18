@@ -1,137 +1,174 @@
-package protocol_test
+package protocol
 
 import (
 	"encoding/json"
-	"strings"
+	"errors"
+	"reflect"
 	"testing"
-
-	"github.com/marketconnect/mcp-go/protocol"
 )
 
-func TestNewRequest(t *testing.T) {
-	req := protocol.NewRequest("sum", 123, map[string]interface{}{"a": 1, "b": 2})
+func TestNewRequestConstructsProperly(t *testing.T) {
+	Id := newID(1)
+	Method := "doSomething"
+	Params := map[string]interface{}{"x": 42}
 
-	if req.JSONRPC != protocol.JSONRPCVersion {
-		t.Errorf("expected JSONRPC version %q, got %q", protocol.JSONRPCVersion, req.JSONRPC)
+	Req := NewRequest(Method, Params, Id)
+
+	if Req.GetMethod() != Method {
+		t.Errorf("Expected method '%s', got '%s'", Method, Req.GetMethod())
 	}
 
-	if req.Method != "sum" {
-		t.Errorf("expected method 'sum', got %q", req.Method)
+	ParamsMap, Ok := Req.GetParams().(map[string]interface{})
+	if !Ok {
+		t.Fatalf("Expected Params to be a map, got %T", Req.GetParams())
+	}
+	XVal, Ok := ParamsMap["x"]
+	if !Ok {
+		t.Errorf("Expected param 'x' to exist")
+	}
+	XInt, Ok := XVal.(int)
+	if !Ok || XInt != 42 {
+		t.Errorf("Expected x = 42, got %v (type %T)", XVal, XVal)
 	}
 
-	if req.ID.Value != 123 {
-		t.Errorf("expected ID 123, got %v", req.ID.Value)
-	}
-
-	params, ok := req.Params.(map[string]interface{})
-	if !ok || params["a"] != 1 || params["b"] != 2 {
-		t.Errorf("unexpected params: %#v", req.Params)
-	}
-}
-
-func TestNewRequestWithID(t *testing.T) {
-	id := protocol.NewID(456)
-	req := protocol.NewRequestWithID("multiply", id, map[string]interface{}{"x": 3, "y": 4})
-
-	if req.ID != id {
-		t.Errorf("expected ID %v, got %v", id, req.ID)
-	}
-	if req.Method != "multiply" {
-		t.Errorf("expected method 'multiply', got %q", req.Method)
+	if Req.GetID().(int) != 1 {
+		t.Errorf("Expected ID = 1, got %v", Req.GetID())
 	}
 }
 
-func TestRequestValidate(t *testing.T) {
-	validReq := protocol.NewRequest("sum", 123, nil)
-	if err := validReq.Validate(); err != nil {
-		t.Errorf("expected no error, got %v", err)
+func TestSetID_ValidAndInvalid(t *testing.T) {
+	Req := NewRequest("method", nil, newID(1)).(*jsonRPCRequest[int])
+
+	Err := Req.SetID(100)
+	if Err != nil {
+		t.Errorf("Expected SetID to succeed, got error: %v", Err)
+	}
+	if Req.ID.Value != 100 {
+		t.Errorf("Expected ID = 100, got %v", Req.ID.Value)
 	}
 
-	cases := []struct {
-		name    string
-		request protocol.JSONRPCRequest[int]
-		wantErr string
-	}{
-		{
-			name:    "invalid JSONRPC version",
-			request: protocol.JSONRPCRequest[int]{JSONRPC: "1.0", Method: "sum", ID: protocol.NewID(1)},
-			wantErr: "invalid JSON-RPC version",
-		},
-		{
-			name:    "empty method name",
-			request: protocol.JSONRPCRequest[int]{JSONRPC: protocol.JSONRPCVersion, Method: "", ID: protocol.NewID(1)},
-			wantErr: "method name cannot be empty",
-		},
-
-		{
-			name:    "reserved method name",
-			request: protocol.JSONRPCRequest[int]{JSONRPC: protocol.JSONRPCVersion, Method: "rpc.call", ID: protocol.NewID(1)},
-			wantErr: "method names starting with 'rpc.' are reserved",
-		},
-	}
-
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			err := c.request.Validate()
-			if err == nil || !strings.Contains(err.Error(), c.wantErr) {
-				t.Errorf("expected error containing %q, got %v", c.wantErr, err)
-			}
-		})
+	Err = Req.SetID("wrong-type")
+	if !errors.Is(Err, ErrInvalidID) {
+		t.Errorf("Expected ErrInvalidID, got %v", Err)
 	}
 }
 
-func TestRequestUnmarshalJSON(t *testing.T) {
-	jsonData := `{
-		"jsonrpc": "2.0",
-		"method": "sum",
-		"id": 42,
-		"params": {"a": 1, "b": 2}
-	}`
-
-	var req protocol.JSONRPCRequest[int]
-	err := json.Unmarshal([]byte(jsonData), &req)
-	if err != nil {
-		t.Fatalf("unexpected error unmarshalling JSON: %v", err)
+func TestValidate_ValidRequest(t *testing.T) {
+	Req := &jsonRPCRequest[int]{
+		JSONRPC: JSONRPCVersion,
+		Method:  "validMethod",
+		Params:  nil,
+		ID:      newID(42),
 	}
-
-	if req.JSONRPC != protocol.JSONRPCVersion {
-		t.Errorf("expected JSONRPC %q, got %q", protocol.JSONRPCVersion, req.JSONRPC)
-	}
-
-	if req.Method != "sum" {
-		t.Errorf("expected method 'sum', got %q", req.Method)
-	}
-
-	if req.ID.Value != 42 {
-		t.Errorf("expected ID 42, got %v", req.ID.Value)
+	Err := Req.validate()
+	if Err != nil {
+		t.Errorf("Expected valid request, got error: %v", Err)
 	}
 }
 
-func TestRequestMarshalUnmarshalJSON(t *testing.T) {
-	original := protocol.NewRequest("sum", 123, map[string]interface{}{"a": 1, "b": 2})
-
-	data, err := json.Marshal(original)
-	if err != nil {
-		t.Fatalf("unexpected error marshalling JSON: %v", err)
+func TestValidate_InvalidJSONRPCVersion(t *testing.T) {
+	Req := &jsonRPCRequest[int]{
+		JSONRPC: "1.0",
+		Method:  "validMethod",
+		ID:      newID(1),
 	}
-
-	var decoded protocol.JSONRPCRequest[int]
-	if err := json.Unmarshal(data, &decoded); err != nil {
-		t.Fatalf("unexpected error unmarshalling JSON: %v", err)
-	}
-
-	if decoded.Method != original.Method {
-		t.Errorf("expected method %q, got %q", original.Method, decoded.Method)
-	}
-
-	if decoded.ID != original.ID {
-		t.Errorf("expected ID %v, got %v", original.ID, decoded.ID)
+	Err := Req.validate()
+	if Err == nil || Err.Error() != `invalid JSON-RPC version: expected "2.0", got "1.0"` {
+		t.Errorf("Expected invalid JSON-RPC version error, got %v", Err)
 	}
 }
 
-func TestRequestGetID(t *testing.T) {
-	req := protocol.NewRequest("sum", 789, nil)
-	if got := req.GetID(); got != 789 {
-		t.Errorf("expected ID 789, got %v", got)
+func TestValidate_EmptyMethod(t *testing.T) {
+	Req := &jsonRPCRequest[int]{
+		JSONRPC: JSONRPCVersion,
+		Method:  "   ",
+		ID:      newID(1),
+	}
+	Err := Req.validate()
+	if Err == nil || Err.Error() != "method name cannot be empty or whitespace" {
+		t.Errorf("Expected method name error, got %v", Err)
+	}
+}
+
+func TestValidate_EmptyID(t *testing.T) {
+	Req := &jsonRPCRequest[int]{
+		JSONRPC: JSONRPCVersion,
+		Method:  "test",
+		ID:      newID(0),
+	}
+	Err := Req.validate()
+	if Err == nil || Err.Error() != "id must not be empty" {
+		t.Errorf("Expected empty ID error, got %v", Err)
+	}
+}
+
+func TestValidate_ReservedMethodPrefix(t *testing.T) {
+	Req := &jsonRPCRequest[int]{
+		JSONRPC: JSONRPCVersion,
+		Method:  "rpc.internal",
+		ID:      newID(1),
+	}
+	Err := Req.validate()
+	if Err == nil || Err.Error() != `method names starting with 'rpc.' are reserved, got: "rpc.internal"` {
+		t.Errorf("Expected reserved prefix error, got %v", Err)
+	}
+}
+
+func TestUnmarshalJSON_Valid(t *testing.T) {
+	Data := `{"jsonrpc":"2.0","method":"compute","params":{"a":1},"id":999}`
+	var Req jsonRPCRequest[int]
+	Err := json.Unmarshal([]byte(Data), &Req)
+	if Err != nil {
+		t.Errorf("Expected valid unmarshal, got error: %v", Err)
+	}
+	if Req.ID.Value != 999 {
+		t.Errorf("Expected ID = 999, got %v", Req.ID.Value)
+	}
+	if Req.Method != "compute" {
+		t.Errorf("Expected method 'compute', got %v", Req.Method)
+	}
+}
+
+func TestUnmarshalJSON_EmptyData(t *testing.T) {
+	var Req jsonRPCRequest[int]
+	Err := Req.UnmarshalJSON([]byte{})
+	if !errors.Is(Err, ErrEmptyJSONData) {
+		t.Errorf("Expected ErrEmptyJSONData, got %v", Err)
+	}
+}
+
+func TestUnmarshalJSON_InvalidField(t *testing.T) {
+	Data := `{"jsonrpc":"2.0","method":"  ","id":1}`
+	var Req jsonRPCRequest[int]
+	Err := json.Unmarshal([]byte(Data), &Req)
+	if Err == nil {
+		t.Errorf("Expected validation error due to empty method")
+	}
+}
+
+func TestSetMethodAndSetParams(t *testing.T) {
+	req := NewRequest("oldMethod", map[string]string{"old": "param"}, NextIntID()).(*jsonRPCRequest[int64])
+
+	// Тест SetMethod
+	req.SetMethod("newMethod")
+	if req.GetMethod() != "newMethod" {
+		t.Errorf("Expected method 'newMethod', got '%s'", req.GetMethod())
+	}
+
+	// Тест SetParams
+	newParams := map[string]string{"new": "value"}
+	req.SetParams(newParams)
+	if !reflect.DeepEqual(req.GetParams(), newParams) {
+		t.Errorf("Expected new params, got %v", req.GetParams())
+	}
+}
+
+func TestUnmarshalJSONInvalidJSONStruct(t *testing.T) {
+	// Создаем поврежденный JSON, который вызовет ошибку при разборе структуры
+	invalidJSON := []byte(`{"jsonrpc":2.0,"method":"test","id":true}`)
+	var req jsonRPCRequest[int]
+	err := req.UnmarshalJSON(invalidJSON)
+	if err == nil {
+		t.Errorf("Expected error on invalid JSON structure, got nil")
 	}
 }

@@ -6,48 +6,64 @@ import (
 )
 
 // === Error Variables ===
+var (
+	// ErrInvalidID is returned when the ID in the JSON is invalid.
+	//
+	// Example:
+	//
+	//	if errors.Is(err, protocol.ErrInvalidID) {
+	//		log.Println("Invalid ID")
+	//	}
+	ErrInvalidID = errors.New("invalid ID")
 
-// ErrInvalidID is returned when the ID in the JSON is invalid.
-//
-// Example:
-//
-//	if errors.Is(err, protocol.ErrInvalidID) {
-//		log.Println("Invalid ID")
-//	}
-var ErrInvalidID = errors.New("invalid ID")
+	// ErrEmptyRequestID is returned when the request ID is empty.
+	//
+	// Example:
+	//
+	//	if errors.Is(err, protocol.ErrEmptyRequestID) {
+	//		log.Println("Request ID is empty")
+	//	}
+	ErrEmptyRequestID = errors.New("request ID cannot be empty")
 
-// ErrEmptyRequestID is returned when the request ID is empty.
-//
-// Example:
-//
-//	if errors.Is(err, protocol.ErrEmptyRequestID) {
-//		log.Println("Request ID is empty")
-//	}
-var ErrEmptyRequestID = errors.New("request ID cannot be empty")
+	// ErrSoftTimeoutNotPositive is returned when the soft timeout is not positive.
+	ErrSoftTimeoutNotPositive = errors.New("soft timeout must be greater than zero")
 
-// ErrSoftTimeoutNotPositive is returned when the soft timeout is not positive.
-var ErrSoftTimeoutNotPositive = errors.New("soft timeout must be greater than zero")
+	// ErrMaximumTimeoutNotPositive is returned when the maximum timeout is not positive.
+	ErrMaximumTimeoutNotPositive = errors.New("maximum timeout must be greater than zero")
 
-// ErrMaximumTimeoutNotPositive is returned when the maximum timeout is not positive.
-var ErrMaximumTimeoutNotPositive = errors.New("maximum timeout must be greater than zero")
+	// ErrSoftTimeoutExceedsMaximum is returned when the soft timeout exceeds or equals the maximum timeout.
+	ErrSoftTimeoutExceedsMaximum = errors.New("soft timeout exceeds or equals maximum timeout")
 
-// ErrSoftTimeoutExceedsMaximum is returned when the soft timeout exceeds or equals the maximum timeout.
-var ErrSoftTimeoutExceedsMaximum = errors.New("soft timeout exceeds or equals maximum timeout")
+	// ErrDuplicateRequestID is returned when a request with the same ID has already been started in this session.
+	//
+	// Example:
+	//
+	//	if errors.Is(err, protocol.ErrDuplicateRequestID) {
+	//		log.Println("Duplicate request ID")
+	//	}
+	ErrDuplicateRequestID = errors.New("request ID already used in this session")
 
-// ErrDuplicateRequestID is returned when a request with the same ID has already been started in this session.
-//
-// Example:
-//
-//	if errors.Is(err, protocol.ErrDuplicateRequestID) {
-//		log.Println("Duplicate request ID")
-//	}
-var ErrDuplicateRequestID = errors.New("request ID already used in this session")
+	// ErrRequestNotFound is returned when attempting to operate on a request that does not exist.
+	ErrRequestNotFound = errors.New("request not found")
 
-// ErrRequestNotFound is returned when attempting to operate on a request that does not exist.
-var ErrRequestNotFound = errors.New("request not found")
+	// ErrTimeoutCallbackNil is returned when a nil callback function is provided.
+	ErrCallbackNil = errors.New("callback must not be nil")
 
-// ErrTimeoutCallbackNil is returned when a nil callback function is provided.
-var ErrCallbackNil = errors.New("callback must not be nil")
+	// ErrUnsupportedMessage is returned when a message is not supported.
+	ErrUnsupportedMessage = errors.New("unsupported or invalid message type")
+
+	// ErrEmptyJSONData is returned when the JSON data is empty.
+	ErrEmptyJSONData = errors.New("empty JSON data")
+
+	// ErrInvalidBatch is returned when batch message fails to unmarshal
+	ErrInvalidBatch = errors.New("invalid JSON-RPC batch")
+
+	// ErrInvalidMessageInBatch is returned when an individual message in the batch is invalid
+	ErrInvalidMessageInBatch = errors.New("invalid message inside JSON-RPC batch")
+
+	// ErrUnsupportedMessageType is returned when message type could not be determined
+	ErrUnsupportedMessageType = errors.New("unsupported or unrecognized message type")
+)
 
 // === JSON-RPC Error Codes ===
 

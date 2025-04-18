@@ -27,8 +27,8 @@ func TestTriggerCallbackContextAlreadyCancelled(t *testing.T) {
 	}
 
 	state := &requestState[string]{
-		id:        NewID("ctx-done"),
-		onTimeout: func(IDType[string], TimeoutType) {},
+		id:        newID("ctx-done"),
+		onTimeout: func(ID[string], TimeoutType) {},
 	}
 
 	manager.triggerCallback(state, SoftTimeout)
@@ -38,11 +38,11 @@ func TestTriggerCallbackContextAlreadyCancelled(t *testing.T) {
 func TestTriggerCallbackPanicNoErrorHandler(t *testing.T) {
 	manager := NewRequestLifecycleManager[string](context.Background())
 
-	id := NewID("panic-no-handler")
+	id := newID("panic-no-handler")
 
 	state := &requestState[string]{
 		id:        id,
-		onTimeout: func(IDType[string], TimeoutType) { panic("boom!") },
+		onTimeout: func(ID[string], TimeoutType) { panic("boom!") },
 	}
 
 	manager.requests[id] = state
@@ -56,14 +56,14 @@ func TestStopAllWaitTriggersWaitGroup(t *testing.T) {
 	ctx := context.Background()
 	manager := NewRequestLifecycleManager[string](ctx)
 
-	id := NewID("test-stopall-wait")
+	id := newID("test-stopall-wait")
 
 	triggered := make(chan struct{})
 	blockDone := make(chan struct{})
 
 	state := &requestState[string]{
 		id: id,
-		onTimeout: func(IDType[string], TimeoutType) {
+		onTimeout: func(ID[string], TimeoutType) {
 			close(triggered)
 			<-blockDone
 		},
@@ -98,7 +98,7 @@ func TestStopAllWaitTriggersWaitGroup(t *testing.T) {
 func TestResetTimeout_TimerStopReturnsFalse(t *testing.T) {
 	manager := NewRequestLifecycleManager[string](context.Background())
 
-	id := NewID("reset-false-stop")
+	id := newID("reset-false-stop")
 
 	timer := time.NewTimer(1 * time.Millisecond)
 	time.Sleep(10 * time.Millisecond)
@@ -106,7 +106,7 @@ func TestResetTimeout_TimerStopReturnsFalse(t *testing.T) {
 	state := &requestState[string]{
 		id:        id,
 		softTimer: timer,
-		onTimeout: func(IDType[string], TimeoutType) {},
+		onTimeout: func(ID[string], TimeoutType) {},
 	}
 
 	manager.requests[id] = state

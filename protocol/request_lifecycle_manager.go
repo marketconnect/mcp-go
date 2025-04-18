@@ -35,13 +35,13 @@ func (t TimeoutType) String() string {
 // requestState holds the internal state of a tracked request.
 // It is used internally by RequestLifecycleManager to track timeouts and activity.
 type requestState[T IDConstraint] struct {
-	id             IDType[T]
+	id             ID[T]
 	softTimeout    time.Duration
 	maximumTimeout time.Duration
 	softTimer      *time.Timer
 	maximumTimer   *time.Timer
 
-	onTimeout    func(IDType[T], TimeoutType)
+	onTimeout    func(ID[T], TimeoutType)
 	lastActivity time.Time
 }
 
@@ -72,20 +72,20 @@ func (s *requestState[T]) stop() {
 //	manager.CompleteRequest(NewID("request-123"))
 type RequestLifecycleManager[T IDConstraint] struct {
 	mu       sync.Mutex
-	requests map[IDType[T]]*requestState[T]
-	usedIDs  map[IDType[T]]struct{}
+	requests map[ID[T]]*requestState[T]
+	usedIDs  map[ID[T]]struct{}
 
 	ctx    context.Context
 	cancel context.CancelFunc
 
 	wg sync.WaitGroup
 
-	onError func(IDType[T], error)
+	onError func(ID[T], error)
 }
 
 type RequestLifecycleOption[T IDConstraint] func(*RequestLifecycleManager[T])
 
-func WithErrorHandler[T IDConstraint](fn func(IDType[T], error)) RequestLifecycleOption[T] {
+func WithErrorHandler[T IDConstraint](fn func(ID[T], error)) RequestLifecycleOption[T] {
 	return func(m *RequestLifecycleManager[T]) {
 		m.onError = fn
 	}
@@ -100,8 +100,8 @@ func NewRequestLifecycleManager[T IDConstraint](ctx context.Context, opts ...Req
 	ctx, cancel := context.WithCancel(ctx)
 
 	manager := &RequestLifecycleManager[T]{
-		requests: make(map[IDType[T]]*requestState[T]),
-		usedIDs:  make(map[IDType[T]]struct{}),
+		requests: make(map[ID[T]]*requestState[T]),
+		usedIDs:  make(map[ID[T]]struct{}),
 		ctx:      ctx,
 		cancel:   cancel,
 	}
@@ -135,17 +135,17 @@ func (m *RequestLifecycleManager[T]) Len() int {
 //   - The request ID has already been used in this session.
 //   - The provided timeouts are invalid.
 func (m *RequestLifecycleManager[T]) StartRequest(
-	id IDType[T],
+	id ID[T],
 	softTimeout time.Duration,
 	maximumTimeout time.Duration,
-	onTimeout func(IDType[T], TimeoutType),
+	onTimeout func(ID[T], TimeoutType),
 ) error {
 
 	if onTimeout == nil {
 		return ErrCallbackNil
 	}
 
-	if id.IsEmpty() {
+	if id.isEmpty() {
 		return ErrEmptyRequestID
 	}
 	m.mu.Lock()
@@ -195,7 +195,7 @@ func (m *RequestLifecycleManager[T]) StartRequest(
 // Returns an error if:
 //   - The request is not found.
 //   - The provided callback is nil.
-func (m *RequestLifecycleManager[T]) UpdateCallback(id IDType[T], newCallback func(IDType[T], TimeoutType)) error {
+func (m *RequestLifecycleManager[T]) UpdateCallback(id ID[T], newCallback func(ID[T], TimeoutType)) error {
 	if newCallback == nil {
 		return ErrCallbackNil
 	}
@@ -215,13 +215,13 @@ func (m *RequestLifecycleManager[T]) UpdateCallback(id IDType[T], newCallback fu
 
 // CompleteRequest stops tracking the request with the specified ID.
 // Should be called when a request completes successfully.
-func (m *RequestLifecycleManager[T]) CompleteRequest(id IDType[T]) {
+func (m *RequestLifecycleManager[T]) CompleteRequest(id ID[T]) {
 	m.cleanupRequest(id)
 }
 
 // ResetTimeout resets the soft timeout timer for the specified request.
 // Useful when receiving progress notifications to extend the active period.
-func (m *RequestLifecycleManager[T]) ResetTimeout(id IDType[T]) error {
+func (m *RequestLifecycleManager[T]) ResetTimeout(id ID[T]) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -245,11 +245,11 @@ func (m *RequestLifecycleManager[T]) ResetTimeout(id IDType[T]) error {
 }
 
 // ActiveIDs returns a snapshot list of currently active request IDs.
-func (m *RequestLifecycleManager[T]) ActiveIDs() []IDType[T] {
+func (m *RequestLifecycleManager[T]) ActiveIDs() []ID[T] {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	ids := make([]IDType[T], 0, len(m.requests))
+	ids := make([]ID[T], 0, len(m.requests))
 	for id := range m.requests {
 		ids = append(ids, id)
 	}
@@ -259,16 +259,16 @@ func (m *RequestLifecycleManager[T]) ActiveIDs() []IDType[T] {
 // StopAll stops all active requests, cancels the context, and optionally waits for all in-flight timeout callbacks to complete.
 //
 // Set wait=true to ensure complete deterministic shutdown before returning.
-func (m *RequestLifecycleManager[T]) StopAll(wait bool) []IDType[T] {
+func (m *RequestLifecycleManager[T]) StopAll(wait bool) []ID[T] {
 	m.cancel()
 
 	m.mu.Lock()
-	ids := make([]IDType[T], 0, len(m.requests))
+	ids := make([]ID[T], 0, len(m.requests))
 	for id, state := range m.requests {
 		state.stop()
 		ids = append(ids, id)
 	}
-	m.requests = make(map[IDType[T]]*requestState[T])
+	m.requests = make(map[ID[T]]*requestState[T])
 	m.mu.Unlock()
 
 	if wait {
@@ -309,7 +309,7 @@ func (m *RequestLifecycleManager[T]) triggerCallback(state *requestState[T], t T
 
 // cleanupRequest stops timers and removes the request from tracking.
 // Returns true if the request was found and cleaned up.
-func (m *RequestLifecycleManager[T]) cleanupRequest(id IDType[T]) bool {
+func (m *RequestLifecycleManager[T]) cleanupRequest(id ID[T]) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 

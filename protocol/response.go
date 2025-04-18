@@ -2,20 +2,19 @@ package protocol
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 )
 
-// JSONRPCResponse represents a JSON-RPC 2.0 / MCP-compliant response.
-type JSONRPCResponse[T IDConstraint, R any] struct {
+// jsonRPCResponse represents a JSON-RPC 2.0 / MCP-compliant response.
+type jsonRPCResponse[T IDConstraint] struct {
 	// Version of the JSON-RPC protocol.
 	JSONRPC string `json:"jsonrpc"`
 
 	// The ID of the request this response corresponds to.
-	ID IDType[T] `json:"id"`
+	ID ID[T] `json:"id"`
 
 	// The result of the request. This is optional, but exactly one of Result or Error MUST be set.
-	Result *R `json:"result,omitempty"`
+	Result interface{} `json:"result,omitempty"`
 
 	// Error object if the request failed.
 	Error *RPCError `json:"error,omitempty"`
@@ -87,89 +86,7 @@ func NewRPCError(code int, message string, data interface{}) *RPCError {
 	}
 }
 
-// NewSuccessResponse creates a new MCP / JSON-RPC-compliant success response.
-//
-// Parameters:
-//   - id: the unique identifier of the request that this response corresponds to.
-//   - result: the result of the operation, can be any type or nil.
-//
-// Example:
-//
-//	type SumResult struct {
-//	    Total int `json:"total"`
-//	}
-//
-//	result := &SumResult{Total: 42}
-//	response := NewSuccessResponse("req-123", result)
-//	fmt.Printf("%+v\n", response)
-//
-// Returns:
-//   - JSONRPCResponse[T, R]: a populated successful response object.
-func NewSuccessResponse[T IDConstraint, R any](id T, result *R) JSONRPCResponse[T, R] {
-	return JSONRPCResponse[T, R]{
-		JSONRPC: JSONRPCVersion,
-		ID:      NewID(id),
-		Result:  result,
-	}
-}
-
-// NewErrorResponse creates a new MCP / JSON-RPC-compliant error response.
-//
-// Use this function to construct a response for a failed request with a specific
-// error code, message, and optional data.
-//
-// Parameters:
-//   - id: the identifier of the original request this response corresponds to.
-//   - code: the error code as per MCP / JSON-RPC specification.
-//   - message: a human-readable message describing the error.
-//   - data: optional additional structured data providing error context.
-//
-// Example:
-//
-//	response := NewErrorResponse(NewID("req-456"), -32601, "Method not found", map[string]string{"method": "unknown"})
-//	fmt.Printf("%+v\n", response)
-//
-// Returns:
-//   - JSONRPCResponse[T, R]: a populated error response object.
-func NewErrorResponse[T IDConstraint, R any](id IDType[T], code int, message string, data interface{}) JSONRPCResponse[T, R] {
-	return JSONRPCResponse[T, R]{
-		JSONRPC: JSONRPCVersion,
-		ID:      id,
-		Error: &RPCError{
-			Code:    code,
-			Message: message,
-			Data:    data,
-		},
-	}
-}
-
-// NewErrorResponseFromError creates an MCP / JSON-RPC error response
-// using an existing *RPCError instance.
-//
-// Use this function when you already have a pre-defined RPCError and want to
-// wrap it into a JSONRPCResponse for transport.
-//
-// Parameters:
-//   - id: the identifier of the original request.
-//   - rpcErr: the RPCError instance to use in the response.
-//
-// Example:
-//
-//	err := NewRPCError(-32602, "Invalid params", map[string]string{"param": "age"})
-//	response := NewErrorResponseFromError(NewID("req-789"), err)
-//	fmt.Printf("%+v\n", response)
-//
-// Returns:
-//   - JSONRPCResponse[T, R]: a populated error response object.
-func NewErrorResponseFromError[T IDConstraint, R any](id IDType[T], rpcErr *RPCError) JSONRPCResponse[T, R] {
-	return JSONRPCResponse[T, R]{
-		JSONRPC: JSONRPCVersion,
-		ID:      id,
-		Error:   rpcErr,
-	}
-}
-
-// Validate checks whether the JSON-RPC / MCP response object adheres to protocol rules.
+// validate checks whether the JSON-RPC / MCP response object adheres to protocol rules.
 //
 // It ensures the following:
 //   - The JSONRPC version is correct.
@@ -184,15 +101,15 @@ func NewErrorResponseFromError[T IDConstraint, R any](id IDType[T], rpcErr *RPCE
 // Example:
 //
 //	response := NewSuccessResponse(NewID("req-123"), &Result{...})
-//	if err := response.Validate(); err != nil {
+//	if err := response.validate(); err != nil {
 //	    log.Fatalf("Invalid response: %v", err)
 //	}
-func (r JSONRPCResponse[T, R]) Validate() error {
+func (r jsonRPCResponse[T]) validate() error {
 	if r.JSONRPC != JSONRPCVersion {
 		return &ValidationError{Reason: fmt.Sprintf("invalid JSON-RPC version: expected %q, got %q", JSONRPCVersion, r.JSONRPC)}
 	}
 
-	if r.ID.IsEmpty() {
+	if r.ID.isEmpty() {
 		return &ValidationError{Reason: "response ID must not be empty"}
 	}
 
@@ -231,12 +148,12 @@ func (r JSONRPCResponse[T, R]) Validate() error {
 //	if err != nil {
 //	    log.Fatalf("Invalid response: %v", err)
 //	}
-func (r *JSONRPCResponse[T, R]) UnmarshalJSON(data []byte) error {
+func (r *jsonRPCResponse[T]) UnmarshalJSON(data []byte) error {
 	if len(data) == 0 {
-		return errors.New("empty JSON data")
+		return ErrEmptyJSONData
 	}
 
-	type responseNoMethods JSONRPCResponse[T, R]
+	type responseNoMethods jsonRPCResponse[T]
 	aux := &struct {
 		responseNoMethods
 	}{}
@@ -245,8 +162,8 @@ func (r *JSONRPCResponse[T, R]) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	temp := JSONRPCResponse[T, R](aux.responseNoMethods)
-	if err := temp.Validate(); err != nil {
+	temp := jsonRPCResponse[T](aux.responseNoMethods)
+	if err := temp.validate(); err != nil {
 		return err
 	}
 	*r = temp
@@ -254,51 +171,58 @@ func (r *JSONRPCResponse[T, R]) UnmarshalJSON(data []byte) error {
 
 }
 
-// GetID returns the underlying raw value of the response ID.
-//
-// Useful for logging, correlating requests and responses, or internal tracking systems.
-// The returned ID will be of the underlying type specified by the generic parameter T.
-//
-// Example:
-//
-//	response := NewSuccessResponse(NewID("req-123"), &MyResult{})
-//	fmt.Println(response.GetID()) // Output: req-123
-func (r JSONRPCResponse[T, R]) GetID() T {
+func (r *jsonRPCResponse[T]) GetID() any {
 	return r.ID.Value
 }
 
-// IsError reports whether the response represents an error.
-//
-// This is a convenience method to quickly check if the response
-// contains an error object.
-//
-// Returns:
-//   - true if the response is an error response.
-//   - false if the response is a success response.
-//
-// Example:
-//
-//	if response.IsError() {
-//	    log.Printf("Request failed: %v", response.Error)
-//	}
-func (r JSONRPCResponse[T, R]) IsError() bool {
+func (r *jsonRPCResponse[T]) SetID(v any) error {
+	val, ok := v.(T)
+	if !ok {
+		return fmt.Errorf("invalid ID type: expected %T, got %T", *new(T), v)
+	}
+	r.ID = ID[T]{Value: val}
+	return nil
+}
+func (r *jsonRPCResponse[T]) GetResult() interface{} {
+	return r.Result
+}
+
+func (r *jsonRPCResponse[T]) SetResult(v interface{}) error {
+	r.Result = v
+	return nil
+}
+
+func (r *jsonRPCResponse[T]) GetError() *RPCError {
+	return r.Error
+}
+
+func (r *jsonRPCResponse[T]) SetError(err *RPCError) {
+	r.Error = err
+}
+
+func (r *jsonRPCResponse[T]) HasResult() bool {
+	return r.Result != nil
+}
+
+func (r *jsonRPCResponse[T]) HasError() bool {
 	return r.Error != nil
 }
 
-// IsSuccess reports whether the response represents a success.
-//
-// This is a convenience method to quickly check if the response
-// contains a result object.
-//
-// Returns:
-//   - true if the response is a success response.
-//   - false if the response is an error response.
-//
-// Example:
-//
-//	if response.IsSuccess() {
-//	    log.Printf("Request succeeded: %v", response.Result)
-//	}
-func (r JSONRPCResponse[T, R]) IsSuccess() bool {
-	return r.Error == nil && r.Result != nil
+type Response interface {
+	GetID() any
+	SetID(any) error
+	GetResult() interface{}
+	SetResult(interface{}) error
+	GetError() *RPCError
+	SetError(*RPCError)
+	HasResult() bool
+	HasError() bool
+}
+
+func NewResponse[T IDConstraint](id T, result interface{}) Response {
+	return &jsonRPCResponse[T]{
+		JSONRPC: JSONRPCVersion,
+		ID:      ID[T]{Value: id},
+		Result:  result,
+	}
 }

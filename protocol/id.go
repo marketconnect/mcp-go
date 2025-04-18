@@ -14,17 +14,17 @@ type IDConstraint interface {
 	~string | ~int | ~int64
 }
 
-// IDType is a generic type that can hold any type that satisfies the IDConstraint.
-type IDType[T IDConstraint] struct {
+// ID is a generic type that can hold any type that satisfies the IDConstraint.
+type ID[T IDConstraint] struct {
 	Value T
 }
 
-// NewID wraps a raw ID value (string or integer) into an IDType.
+// newID wraps a raw ID value (string or integer) into an IDType.
 //
 // This function is useful when you have an existing raw ID and want to create an IDType
 // for use in requests or responses.
 //
-// Note: When using NewID, it is your responsibility to ensure that the provided ID
+// Note: When using newID, it is your responsibility to ensure that the provided ID
 // is unique within the same session, as required by the MCP protocol:
 // "The request ID MUST NOT have been previously used by the requestor within the same session."
 // See https://spec.modelcontextprotocol.io/specification/2025-03-26/basic/#requests
@@ -33,9 +33,9 @@ type IDType[T IDConstraint] struct {
 //
 // Example:
 //
-//	id := protocol.NewID(42)
-func NewID[T IDConstraint](value T) IDType[T] {
-	return IDType[T]{Value: value}
+//	id := protocol.newID(42)
+func newID[T IDConstraint](value T) ID[T] {
+	return ID[T]{Value: value}
 }
 
 // idCounter is a global atomic counter used to generate unique IDs.
@@ -51,9 +51,9 @@ var idCounter int64
 // Example:
 //
 //	id := protocol.NextIntID()
-func NextIntID() IDType[int64] {
+func NextIntID() ID[int64] {
 	id := atomic.AddInt64(&idCounter, 1)
-	return NewID(id)
+	return newID(id)
 }
 
 // NextStringID generates a new unique string-based ID.
@@ -65,44 +65,23 @@ func NextIntID() IDType[int64] {
 //
 //	id := protocol.NextStringID()
 //	fmt.Println(id.String()) // Output: req-1, req-2, etc.
-func NextStringID() IDType[string] {
+func NextStringID() ID[string] {
 
 	id := atomic.AddInt64(&idCounter, 1)
-	return NewID(fmt.Sprintf("req-%d", id))
+	return newID(fmt.Sprintf("req-%d", id))
 }
 
-// String returns the string representation of the IDType.
-//
-// Example:
-//
-//	id := protocol.NewID(42)
-//	fmt.Println(id.String()) // Output: 42
-func (id IDType[T]) String() string {
-	return fmt.Sprintf("%v", id.Value)
-}
-
-// IsEmpty checks if the IDType contains the zero value of its underlying type.
+// isEmpty checks if the IDType contains the zero value of its underlying type.
 //
 // Example:
 //
 //	id := protocol.NewID("")
-//	if id.IsEmpty() {
+//	if id.isEmpty() {
 //	    log.Println("ID is empty")
 //	}
-func (id IDType[T]) IsEmpty() bool {
+func (id ID[T]) isEmpty() bool {
 	var zero T
 	return id.Value == zero
-}
-
-// Equal compares two IDType values for equality.
-//
-// Example:
-//
-//	id1 := protocol.NewID(42)
-//	id2 := protocol.NewID(42)
-//	fmt.Println(id1.Equal(id2)) // Output: true
-func (id IDType[T]) Equal(other IDType[T]) bool {
-	return id.Value == other.Value
 }
 
 // MarshalJSON implements the json.Marshaler interface.
@@ -113,7 +92,7 @@ func (id IDType[T]) Equal(other IDType[T]) bool {
 // Example output:
 //
 //	{"id": 42}
-func (id IDType[T]) MarshalJSON() ([]byte, error) {
+func (id ID[T]) MarshalJSON() ([]byte, error) {
 	return json.Marshal(id.Value)
 }
 
@@ -128,11 +107,11 @@ func (id IDType[T]) MarshalJSON() ([]byte, error) {
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
-func (id *IDType[T]) UnmarshalJSON(data []byte) error {
+func (id *ID[T]) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &id.Value); err != nil {
 		return &InvalidIDError{Err: err}
 	}
-	if id.IsEmpty() {
+	if id.isEmpty() {
 		return ErrEmptyRequestID
 	}
 	return nil

@@ -1,0 +1,1152 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>protocol: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/marketconnect/mcp-go/protocol/errors.go (100.0%)</option>
+				
+				<option value="file1">github.com/marketconnect/mcp-go/protocol/id.go (100.0%)</option>
+				
+				<option value="file2">github.com/marketconnect/mcp-go/protocol/notification.go (95.7%)</option>
+				
+				<option value="file3">github.com/marketconnect/mcp-go/protocol/request.go (90.3%)</option>
+				
+				<option value="file4">github.com/marketconnect/mcp-go/protocol/request_lifecycle_manager.go (94.4%)</option>
+				
+				<option value="file5">github.com/marketconnect/mcp-go/protocol/response.go (89.5%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package protocol
+
+import (
+        "errors"
+        "fmt"
+)
+
+// === Error Variables ===
+var (
+        // ErrInvalidID is returned when the ID in the JSON is invalid.
+        //
+        // Example:
+        //
+        //        if errors.Is(err, protocol.ErrInvalidID) {
+        //                log.Println("Invalid ID")
+        //        }
+        ErrInvalidID = errors.New("invalid ID")
+
+        // ErrEmptyRequestID is returned when the request ID is empty.
+        //
+        // Example:
+        //
+        //        if errors.Is(err, protocol.ErrEmptyRequestID) {
+        //                log.Println("Request ID is empty")
+        //        }
+        ErrEmptyRequestID = errors.New("request ID cannot be empty")
+
+        // ErrSoftTimeoutNotPositive is returned when the soft timeout is not positive.
+        ErrSoftTimeoutNotPositive = errors.New("soft timeout must be greater than zero")
+
+        // ErrMaximumTimeoutNotPositive is returned when the maximum timeout is not positive.
+        ErrMaximumTimeoutNotPositive = errors.New("maximum timeout must be greater than zero")
+
+        // ErrSoftTimeoutExceedsMaximum is returned when the soft timeout exceeds or equals the maximum timeout.
+        ErrSoftTimeoutExceedsMaximum = errors.New("soft timeout exceeds or equals maximum timeout")
+
+        // ErrDuplicateRequestID is returned when a request with the same ID has already been started in this session.
+        //
+        // Example:
+        //
+        //        if errors.Is(err, protocol.ErrDuplicateRequestID) {
+        //                log.Println("Duplicate request ID")
+        //        }
+        ErrDuplicateRequestID = errors.New("request ID already used in this session")
+
+        // ErrRequestNotFound is returned when attempting to operate on a request that does not exist.
+        ErrRequestNotFound = errors.New("request not found")
+
+        // ErrTimeoutCallbackNil is returned when a nil callback function is provided.
+        ErrCallbackNil = errors.New("callback must not be nil")
+
+        // ErrUnsupportedMessage is returned when a message is not supported.
+        ErrUnsupportedMessage = errors.New("unsupported or invalid message type")
+
+        // ErrEmptyJSONData is returned when the JSON data is empty.
+        ErrEmptyJSONData = errors.New("empty JSON data")
+
+        // ErrInvalidBatch is returned when batch message fails to unmarshal
+        ErrInvalidBatch = errors.New("invalid JSON-RPC batch")
+
+        // ErrInvalidMessageInBatch is returned when an individual message in the batch is invalid
+        ErrInvalidMessageInBatch = errors.New("invalid message inside JSON-RPC batch")
+
+        // ErrUnsupportedMessageType is returned when message type could not be determined
+        ErrUnsupportedMessageType = errors.New("unsupported or unrecognized message type")
+)
+
+// === JSON-RPC Error Codes ===
+
+const (
+        ParseError     = -32700
+        InvalidRequest = -32600
+        MethodNotFound = -32601
+        InvalidParams  = -32602
+        InternalError  = -32603
+
+        // Server-defined errors
+        CapabilityDisabled = -32001
+        ResourceNotFound   = -32002
+)
+
+// === Custom Error Types ===
+
+// ValidationError represents an error when a request or response fails validation.
+//
+// Example:
+//
+//        err := &amp;protocol.ValidationError{Reason: "response must contain result or error"}
+//        fmt.Println(err)
+type ValidationError struct {
+        Reason string
+}
+
+// Error implements the error interface.
+func (e *ValidationError) Error() string <span class="cov8" title="1">{
+        return e.Reason
+}</span>
+
+// InvalidIDError wraps ErrInvalidID with additional context.
+//
+// Example:
+//
+//        err := &amp;protocol.InvalidIDError{Err: errors.New("unexpected format")}
+//        fmt.Println(err)
+type InvalidIDError struct {
+        Err error
+}
+
+// Error implements the error interface.
+func (e *InvalidIDError) Error() string <span class="cov8" title="1">{
+        return fmt.Sprintf("%v: %v", ErrInvalidID, e.Err)
+}</span>
+
+// Unwrap allows errors.Is and errors.As to work with InvalidIDError.
+func (e *InvalidIDError) Unwrap() error <span class="cov8" title="1">{
+        return ErrInvalidID
+}</span>
+
+// Is allows errors.Is to work directly with InvalidIDError.
+func (e *InvalidIDError) Is(target error) bool <span class="cov8" title="1">{
+        return target == ErrInvalidID
+}</span>
+
+// === Error Factory ===
+
+// NewValidationError creates a new ValidationError with a formatted reason.
+func NewValidationError(format string, args ...interface{}) *ValidationError <span class="cov8" title="1">{
+        return &amp;ValidationError{Reason: fmt.Sprintf(format, args...)}
+}</span>
+
+// NewInvalidIDError creates a new InvalidIDError with formatted context.
+func NewInvalidIDError(format string, args ...interface{}) *InvalidIDError <span class="cov8" title="1">{
+        return &amp;InvalidIDError{Err: fmt.Errorf(format, args...)}
+}</span>
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package protocol
+
+import (
+        "encoding/json"
+        "fmt"
+        "sync/atomic"
+)
+
+// https://spec.modelcontextprotocol.io/specification/2025-03-26/basic/#requests
+// IDConstraint is a constraint that can be used to define the type of an ID.
+// It can be a string or integer. Unlike base JSON-RPC, the ID MUST NOT be null.
+
+type IDConstraint interface {
+        ~string | ~int | ~int64
+}
+
+// ID is a generic type that can hold any type that satisfies the IDConstraint.
+type ID[T IDConstraint] struct {
+        Value T
+}
+
+// newID wraps a raw ID value (string or integer) into an IDType.
+//
+// This function is useful when you have an existing raw ID and want to create an IDType
+// for use in requests or responses.
+//
+// Note: When using newID, it is your responsibility to ensure that the provided ID
+// is unique within the same session, as required by the MCP protocol:
+// "The request ID MUST NOT have been previously used by the requestor within the same session."
+// See https://spec.modelcontextprotocol.io/specification/2025-03-26/basic/#requests
+//
+// For automatic generation of unique IDs, consider using NextIntID or NextStringID.
+//
+// Example:
+//
+//        id := protocol.newID(42)
+func newID[T IDConstraint](value T) ID[T] <span class="cov8" title="1">{
+        return ID[T]{Value: value}
+}</span>
+
+// idCounter is a global atomic counter used to generate unique IDs.
+//
+// It is used internally by NextIntID and NextStringID functions
+// to ensure ID uniqueness across concurrent operations.
+var idCounter int64
+
+// NextIntID generates a new unique int64-based ID.
+//
+// It is thread-safe and guarantees unique IDs in concurrent environments.
+//
+// Example:
+//
+//        id := protocol.NextIntID()
+func NextIntID() ID[int64] <span class="cov8" title="1">{
+        id := atomic.AddInt64(&amp;idCounter, 1)
+        return newID(id)
+}</span>
+
+// NextStringID generates a new unique string-based ID.
+//
+// The ID is formatted as "req-{counter}" where counter is an atomic incrementing number.
+// It is thread-safe and guarantees unique IDs in concurrent environments.
+//
+// Example:
+//
+//        id := protocol.NextStringID()
+//        fmt.Println(id.String()) // Output: req-1, req-2, etc.
+func NextStringID() ID[string] <span class="cov8" title="1">{
+
+        id := atomic.AddInt64(&amp;idCounter, 1)
+        return newID(fmt.Sprintf("req-%d", id))
+}</span>
+
+// isEmpty checks if the IDType contains the zero value of its underlying type.
+//
+// Example:
+//
+//        id := protocol.NewID("")
+//        if id.isEmpty() {
+//            log.Println("ID is empty")
+//        }
+func (id ID[T]) isEmpty() bool <span class="cov8" title="1">{
+        var zero T
+        return id.Value == zero
+}</span>
+
+// MarshalJSON implements the json.Marshaler interface.
+//
+// It ensures that the IDType is serialized as its underlying primitive value
+// (string or integer), not as a nested object.
+//
+// Example output:
+//
+//        {"id": 42}
+func (id ID[T]) MarshalJSON() ([]byte, error) <span class="cov8" title="1">{
+        return json.Marshal(id.Value)
+}</span>
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+//
+// It parses the JSON value into the IDType and validates that it is not empty.
+//
+// Example:
+//
+//        var id protocol.IDType[int]
+//        err := json.Unmarshal([]byte("42"), &amp;id)
+//        if err != nil {
+//            log.Fatal(err)
+//        }
+func (id *ID[T]) UnmarshalJSON(data []byte) error <span class="cov8" title="1">{
+        if err := json.Unmarshal(data, &amp;id.Value); err != nil </span><span class="cov8" title="1">{
+                return &amp;InvalidIDError{Err: err}
+        }</span>
+        <span class="cov8" title="1">if id.isEmpty() </span><span class="cov8" title="1">{
+                return ErrEmptyRequestID
+        }</span>
+        <span class="cov8" title="1">return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package protocol
+
+import (
+        "encoding/json"
+        "fmt"
+        "strings"
+)
+
+// jsonRPCNotification represents a JSON-RPC 2.0 Notification.
+// A notification is a request without an "id" field.
+type jsonRPCNotification struct {
+        JSONRPC string      `json:"jsonrpc"`
+        Method  string      `json:"method"`
+        Params  interface{} `json:"params,omitempty"`
+}
+
+// validate checks the Notification for correctness.
+func (n jsonRPCNotification) validate() error <span class="cov8" title="1">{
+        if n.JSONRPC != JSONRPCVersion </span><span class="cov8" title="1">{
+                return &amp;ValidationError{Reason: fmt.Sprintf("invalid JSON-RPC version: expected %q, got %q", JSONRPCVersion, n.JSONRPC)}
+        }</span>
+        <span class="cov8" title="1">if strings.TrimSpace(n.Method) == "" </span><span class="cov8" title="1">{
+                return &amp;ValidationError{Reason: "method cannot be empty"}
+        }</span>
+        <span class="cov8" title="1">if strings.HasPrefix(n.Method, "rpc.") </span><span class="cov8" title="1">{
+                return &amp;ValidationError{Reason: "method names starting with 'rpc.' are reserved"}
+        }</span>
+        <span class="cov8" title="1">return nil</span>
+}
+
+func (n *jsonRPCNotification) UnmarshalJSON(data []byte) error <span class="cov8" title="1">{
+        if len(data) == 0 </span><span class="cov8" title="1">{
+                return ErrEmptyJSONData
+        }</span>
+
+        <span class="cov8" title="1">type notificationNoMethods jsonRPCNotification
+        aux := &amp;struct {
+                notificationNoMethods
+        }{}
+
+        if err := json.Unmarshal(data, aux); err != nil </span><span class="cov8" title="1">{
+                return err
+        }</span>
+
+        <span class="cov8" title="1">temp := jsonRPCNotification(aux.notificationNoMethods)
+        if err := temp.validate(); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov8" title="1">*n = temp
+        return nil</span>
+}
+
+// GetMethod returns the method name of the notification.
+func (n jsonRPCNotification) GetMethod() string <span class="cov8" title="1">{
+        return n.Method
+}</span>
+
+// SetMethod sets the method name of the notification.
+func (n *jsonRPCNotification) SetMethod(method string) <span class="cov8" title="1">{
+        n.Method = method
+}</span>
+
+// GetParams returns the parameters of the notification.
+func (n jsonRPCNotification) GetParams() interface{} <span class="cov8" title="1">{
+        return n.Params
+}</span>
+
+// SetParams sets the parameters of the notification.
+func (n *jsonRPCNotification) SetParams(params interface{}) <span class="cov8" title="1">{
+        n.Params = params
+}</span>
+
+type Notification interface {
+        GetMethod() string
+        SetMethod(string)
+        GetParams() interface{}
+        SetParams(interface{})
+}
+
+func NewNotification(method string, params interface{}) Notification <span class="cov8" title="1">{
+        return &amp;jsonRPCNotification{
+                JSONRPC: JSONRPCVersion,
+                Method:  method,
+                Params:  params,
+        }
+}</span>
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">package protocol
+
+import (
+        "encoding/json"
+        "fmt"
+        "strings"
+)
+
+const JSONRPCVersion = "2.0"
+
+type jsonRPCRequest[T IDConstraint] struct {
+        // A String specifying the version of the JSON-RPC protocol. MUST be exactly "2.0".
+        JSONRPC string `json:"jsonrpc"`
+        // A String containing the name of the method to be invoked.
+        // Method names that begin with the word rpc followed by a period character (U+002E or ASCII 46) are reserved for rpc-internal methods
+        // and extensions and MUST NOT be used for anything else.
+        Method string `json:"method"`
+        // A Structured value that holds the parameter values to be used during the invocation of the method.
+        // This member MAY be omitted.
+        Params interface{} `json:"params,omitempty"` // optional parameters
+
+        ID ID[T] `json:"id"`
+}
+
+// validate checks if the JSON-RPC request is valid.
+func (r jsonRPCRequest[T]) validate() error <span class="cov8" title="1">{
+        if r.JSONRPC != JSONRPCVersion </span><span class="cov8" title="1">{
+                return &amp;ValidationError{Reason: fmt.Sprintf("invalid JSON-RPC version: expected %q, got %q", JSONRPCVersion, r.JSONRPC)}
+        }</span>
+
+        <span class="cov8" title="1">if len(strings.TrimSpace(r.Method)) == 0 </span><span class="cov8" title="1">{
+                return &amp;ValidationError{Reason: "method name cannot be empty or whitespace"}
+        }</span>
+
+        <span class="cov8" title="1">if r.ID.isEmpty() </span><span class="cov8" title="1">{
+                return &amp;ValidationError{Reason: "id must not be empty"}
+        }</span>
+
+        // https://www.jsonrpc.org/specification#request_object
+        // Method names that begin with the word rpc followed by
+        // a period character (U+002E or ASCII 46) are reserved
+        // for rpc-internal methods and extensions and MUST NOT be used for anything else.
+        <span class="cov8" title="1">if strings.HasPrefix(r.Method, "rpc.") </span><span class="cov8" title="1">{
+                return &amp;ValidationError{Reason: fmt.Sprintf("method names starting with 'rpc.' are reserved, got: %q", r.Method)}
+        }</span>
+
+        <span class="cov8" title="1">return nil</span>
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+//
+// It parses the JSON-RPC request from JSON data and validates its correctness.
+// If the input is invalid or violates the JSON-RPC specification, an error is returned.
+//
+// This method automatically calls Validate() after unmarshaling.
+//
+// Example:
+//
+//        var req protocol.JSONRPCRequest[int]
+//        err := json.Unmarshal(data, &amp;req)
+//        if err != nil {
+//            log.Fatal(err)
+//        }
+func (r *jsonRPCRequest[T]) UnmarshalJSON(data []byte) error <span class="cov8" title="1">{
+        if len(data) == 0 </span><span class="cov8" title="1">{
+                return ErrEmptyJSONData
+        }</span>
+
+        <span class="cov8" title="1">type requestNoMethods jsonRPCRequest[T]
+        aux := &amp;struct {
+                requestNoMethods
+        }{}
+        if err := json.Unmarshal(data, &amp;aux); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov8" title="1">temp := jsonRPCRequest[T](aux.requestNoMethods)
+        if err := temp.validate(); err != nil </span><span class="cov8" title="1">{
+                return err
+        }</span>
+        <span class="cov8" title="1">*r = temp
+        return nil</span>
+
+}
+
+func (r *jsonRPCRequest[T]) GetID() interface{} <span class="cov8" title="1">{
+        return r.ID.Value
+}</span>
+
+func (r *jsonRPCRequest[T]) SetID(v interface{}) error <span class="cov8" title="1">{
+        val, ok := v.(T)
+        if !ok </span><span class="cov8" title="1">{
+                return ErrInvalidID
+        }</span>
+        <span class="cov8" title="1">r.ID = ID[T]{Value: val}
+        return nil</span>
+}
+
+func (r *jsonRPCRequest[T]) GetMethod() string <span class="cov8" title="1">{
+        return r.Method
+}</span>
+
+func (r *jsonRPCRequest[T]) SetMethod(method string) <span class="cov0" title="0">{
+        r.Method = method
+}</span>
+
+func (r *jsonRPCRequest[T]) GetParams() interface{} <span class="cov8" title="1">{
+        return r.Params
+}</span>
+
+func (r *jsonRPCRequest[T]) SetParams(params interface{}) <span class="cov0" title="0">{
+        r.Params = params
+}</span>
+
+// NewRequest creates a new JSON-RPC request object with the given method, params, and ID.
+//
+// Example:
+//
+//        req := protocol.NewRequest("myMethod", map[string]any{"foo": "bar"}, protocol.NextIntID())
+func NewRequest[T IDConstraint](method string, params interface{}, id ID[T]) Request <span class="cov8" title="1">{
+
+        return &amp;jsonRPCRequest[T]{
+                JSONRPC: JSONRPCVersion,
+                Method:  method,
+                Params:  params,
+                ID:      id,
+        }
+}</span>
+
+type Request interface {
+        GetID() any
+        SetID(any) error
+        GetMethod() string
+        SetMethod(string)
+        GetParams() interface{}
+        SetParams(interface{})
+}
+</pre>
+		
+		<pre class="file" id="file4" style="display: none">package protocol
+
+import (
+        "context"
+        "fmt"
+
+        "sync"
+        "time"
+)
+
+// TimeoutType defines the type of timeout that occurred during request processing.
+type TimeoutType int
+
+const (
+        // SoftTimeout indicates that the initial soft timeout expired.
+        // This is typically used to issue a cancellation notification.
+        SoftTimeout TimeoutType = iota
+
+        // MaximumTimeout indicates that the maximum allowed timeout has expired.
+        // At this point, the request is forcefully cleaned up.
+        MaximumTimeout
+)
+
+func (t TimeoutType) String() string <span class="cov8" title="1">{
+        switch t </span>{
+        case SoftTimeout:<span class="cov8" title="1">
+                return "SoftTimeout"</span>
+        case MaximumTimeout:<span class="cov8" title="1">
+                return "MaximumTimeout"</span>
+        default:<span class="cov8" title="1">
+                return "UnknownTimeout"</span>
+        }
+}
+
+// requestState holds the internal state of a tracked request.
+// It is used internally by RequestLifecycleManager to track timeouts and activity.
+type requestState[T IDConstraint] struct {
+        id             ID[T]
+        softTimeout    time.Duration
+        maximumTimeout time.Duration
+        softTimer      *time.Timer
+        maximumTimer   *time.Timer
+
+        onTimeout    func(ID[T], TimeoutType)
+        lastActivity time.Time
+}
+
+// stop stops all active timers for the request.
+func (s *requestState[T]) stop() <span class="cov8" title="1">{
+        if s.softTimer != nil </span><span class="cov8" title="1">{
+                s.softTimer.Stop()
+                s.softTimer = nil
+        }</span>
+        <span class="cov8" title="1">if s.maximumTimer != nil </span><span class="cov8" title="1">{
+                s.maximumTimer.Stop()
+                s.maximumTimer = nil
+        }</span>
+}
+
+// RequestLifecycleManager manages the lifecycle of MCP protocol requests.
+// It enforces unique request IDs within a session and manages soft and hard timeouts.
+//
+// Typical usage:
+//
+//        manager := NewRequestLifecycleManager[string](сontext.Background())
+//        err := manager.StartRequest(NewID("request-123"), 5*time.Second, 30*time.Second, func(id IDType[string], t TimeoutType) {
+//            log.Printf("Request %s timed out: %s", id, t)
+//        })
+//
+// When a request completes successfully:
+//
+//        manager.CompleteRequest(NewID("request-123"))
+type RequestLifecycleManager[T IDConstraint] struct {
+        mu       sync.Mutex
+        requests map[ID[T]]*requestState[T]
+        usedIDs  map[ID[T]]struct{}
+
+        ctx    context.Context
+        cancel context.CancelFunc
+
+        wg sync.WaitGroup
+
+        onError func(ID[T], error)
+}
+
+type RequestLifecycleOption[T IDConstraint] func(*RequestLifecycleManager[T])
+
+func WithErrorHandler[T IDConstraint](fn func(ID[T], error)) RequestLifecycleOption[T] <span class="cov8" title="1">{
+        return func(m *RequestLifecycleManager[T]) </span><span class="cov8" title="1">{
+                m.onError = fn
+        }</span>
+}
+
+// NewRequestLifecycleManager creates and returns a new RequestLifecycleManager.
+// Call StopAll() when the manager is no longer needed to clean up resources.
+func NewRequestLifecycleManager[T IDConstraint](ctx context.Context, opts ...RequestLifecycleOption[T]) *RequestLifecycleManager[T] <span class="cov8" title="1">{
+        if ctx == nil </span><span class="cov8" title="1">{
+                ctx = context.Background()
+        }</span>
+        <span class="cov8" title="1">ctx, cancel := context.WithCancel(ctx)
+
+        manager := &amp;RequestLifecycleManager[T]{
+                requests: make(map[ID[T]]*requestState[T]),
+                usedIDs:  make(map[ID[T]]struct{}),
+                ctx:      ctx,
+                cancel:   cancel,
+        }
+
+        for _, opt := range opts </span><span class="cov8" title="1">{
+                opt(manager)
+        }</span>
+        <span class="cov8" title="1">return manager</span>
+}
+
+// Done returns a channel that's closed when the manager is stopped.
+// Useful for integrating into select loops.
+func (m *RequestLifecycleManager[T]) Done() &lt;-chan struct{} <span class="cov8" title="1">{
+        return m.ctx.Done()
+}</span>
+
+// Len returns the number of currently active requests being tracked.
+func (m *RequestLifecycleManager[T]) Len() int <span class="cov8" title="1">{
+        m.mu.Lock()
+        defer m.mu.Unlock()
+        return len(m.requests)
+}</span>
+
+// StartRequest begins tracking a new request with the given ID and timeout durations.
+// MCP: Request IDs MUST be unique per session. This is enforced by this method.
+//
+// The softTimeout triggers a warning or cancellation notification if the request takes too long.
+// The maximumTimeout forcefully cleans up the request state.
+//
+// Returns an error if:
+//   - The request ID has already been used in this session.
+//   - The provided timeouts are invalid.
+func (m *RequestLifecycleManager[T]) StartRequest(
+        id ID[T],
+        softTimeout time.Duration,
+        maximumTimeout time.Duration,
+        onTimeout func(ID[T], TimeoutType),
+) error <span class="cov8" title="1">{
+
+        if onTimeout == nil </span><span class="cov0" title="0">{
+                return ErrCallbackNil
+        }</span>
+
+        <span class="cov8" title="1">if id.isEmpty() </span><span class="cov0" title="0">{
+                return ErrEmptyRequestID
+        }</span>
+        <span class="cov8" title="1">m.mu.Lock()
+        defer m.mu.Unlock()
+
+        if _, used := m.usedIDs[id]; used </span><span class="cov0" title="0">{
+                return ErrDuplicateRequestID
+        }</span>
+
+        <span class="cov8" title="1">m.usedIDs[id] = struct{}{}
+
+        if softTimeout &lt;= 0 </span><span class="cov8" title="1">{
+
+                return ErrSoftTimeoutNotPositive
+        }</span>
+        <span class="cov8" title="1">if maximumTimeout &lt;= 0 </span><span class="cov8" title="1">{
+                return ErrMaximumTimeoutNotPositive
+        }</span>
+        <span class="cov8" title="1">if softTimeout &gt; maximumTimeout </span><span class="cov8" title="1">{
+                return ErrSoftTimeoutExceedsMaximum
+        }</span>
+
+        <span class="cov8" title="1">state := &amp;requestState[T]{
+                id:             id,
+                softTimeout:    softTimeout,
+                maximumTimeout: maximumTimeout,
+                lastActivity:   time.Now(),
+                onTimeout:      onTimeout,
+        }
+
+        m.wg.Add(1)
+
+        state.softTimer = time.AfterFunc(softTimeout, func() </span><span class="cov8" title="1">{
+                m.triggerCallback(state, SoftTimeout)
+        }</span>)
+
+        <span class="cov8" title="1">state.maximumTimer = time.AfterFunc(maximumTimeout, func() </span><span class="cov8" title="1">{
+                m.triggerCallback(state, MaximumTimeout)
+        }</span>)
+
+        <span class="cov8" title="1">m.requests[id] = state
+        return nil</span>
+}
+
+// UpdateCallback updates the timeout callback for the specified request.
+//
+// Returns an error if:
+//   - The request is not found.
+//   - The provided callback is nil.
+func (m *RequestLifecycleManager[T]) UpdateCallback(id ID[T], newCallback func(ID[T], TimeoutType)) error <span class="cov8" title="1">{
+        if newCallback == nil </span><span class="cov8" title="1">{
+                return ErrCallbackNil
+        }</span>
+
+        <span class="cov8" title="1">m.mu.Lock()
+        defer m.mu.Unlock()
+
+        state, exists := m.requests[id]
+        if !exists </span><span class="cov8" title="1">{
+                return ErrRequestNotFound
+        }</span>
+
+        <span class="cov8" title="1">state.onTimeout = newCallback
+        state.lastActivity = time.Now()
+        return nil</span>
+}
+
+// CompleteRequest stops tracking the request with the specified ID.
+// Should be called when a request completes successfully.
+func (m *RequestLifecycleManager[T]) CompleteRequest(id ID[T]) <span class="cov8" title="1">{
+        m.cleanupRequest(id)
+}</span>
+
+// ResetTimeout resets the soft timeout timer for the specified request.
+// Useful when receiving progress notifications to extend the active period.
+func (m *RequestLifecycleManager[T]) ResetTimeout(id ID[T]) error <span class="cov8" title="1">{
+        m.mu.Lock()
+        defer m.mu.Unlock()
+
+        state, exists := m.requests[id]
+        if !exists </span><span class="cov8" title="1">{
+                return ErrRequestNotFound
+        }</span>
+
+        <span class="cov8" title="1">if state.softTimer != nil </span><span class="cov8" title="1">{
+                if !state.softTimer.Stop() </span><span class="cov0" title="0">{
+                        return nil
+                }</span>
+        }
+
+        <span class="cov8" title="1">state.softTimer = time.AfterFunc(state.softTimeout, func() </span><span class="cov8" title="1">{
+                m.triggerCallback(state, SoftTimeout)
+        }</span>)
+
+        <span class="cov8" title="1">state.lastActivity = time.Now()
+        return nil</span>
+}
+
+// ActiveIDs returns a snapshot list of currently active request IDs.
+func (m *RequestLifecycleManager[T]) ActiveIDs() []ID[T] <span class="cov8" title="1">{
+        m.mu.Lock()
+        defer m.mu.Unlock()
+
+        ids := make([]ID[T], 0, len(m.requests))
+        for id := range m.requests </span><span class="cov8" title="1">{
+                ids = append(ids, id)
+        }</span>
+        <span class="cov8" title="1">return ids</span>
+}
+
+// StopAll stops all active requests, cancels the context, and optionally waits for all in-flight timeout callbacks to complete.
+//
+// Set wait=true to ensure complete deterministic shutdown before returning.
+func (m *RequestLifecycleManager[T]) StopAll(wait bool) []ID[T] <span class="cov8" title="1">{
+        m.cancel()
+
+        m.mu.Lock()
+        ids := make([]ID[T], 0, len(m.requests))
+        for id, state := range m.requests </span><span class="cov0" title="0">{
+                state.stop()
+                ids = append(ids, id)
+        }</span>
+        <span class="cov8" title="1">m.requests = make(map[ID[T]]*requestState[T])
+        m.mu.Unlock()
+
+        if wait </span><span class="cov8" title="1">{
+                m.wg.Wait()
+        }</span>
+
+        <span class="cov8" title="1">return ids</span>
+}
+
+// triggerCallback is an internal method that handles timeout events.
+// It first checks if the manager context has been cancelled before proceeding.
+func (m *RequestLifecycleManager[T]) triggerCallback(state *requestState[T], t TimeoutType) <span class="cov8" title="1">{
+        select </span>{
+        case &lt;-m.ctx.Done():<span class="cov8" title="1">
+                return</span>
+        default:<span class="cov8" title="1"></span>
+        }
+
+        <span class="cov8" title="1">m.mu.Lock()
+        onTimeoutCopy := state.onTimeout
+        m.mu.Unlock()
+
+        if m.cleanupRequest(state.id) </span><span class="cov8" title="1">{
+                defer func() </span><span class="cov8" title="1">{
+                        if r := recover(); r != nil </span><span class="cov8" title="1">{
+                                err := fmt.Errorf("callback panic: %v", r)
+                                if m.onError != nil </span><span class="cov8" title="1">{
+                                        m.onError(state.id, err)
+                                }</span> else<span class="cov8" title="1"> {
+                                        fmt.Printf("Request %v callback panicked: %v\n", state.id, r)
+                                }</span>
+                        }
+                }()
+
+                <span class="cov8" title="1">onTimeoutCopy(state.id, t)</span>
+        }
+}
+
+// cleanupRequest stops timers and removes the request from tracking.
+// Returns true if the request was found and cleaned up.
+func (m *RequestLifecycleManager[T]) cleanupRequest(id ID[T]) bool <span class="cov8" title="1">{
+        m.mu.Lock()
+        defer m.mu.Unlock()
+
+        state, exists := m.requests[id]
+        if !exists </span><span class="cov8" title="1">{
+                return false
+        }</span>
+
+        <span class="cov8" title="1">state.stop()
+
+        delete(m.requests, id)
+        m.wg.Done()
+
+        return true</span>
+}
+</pre>
+		
+		<pre class="file" id="file5" style="display: none">package protocol
+
+import (
+        "encoding/json"
+        "fmt"
+)
+
+// jsonRPCResponse represents a JSON-RPC 2.0 / MCP-compliant response.
+type jsonRPCResponse[T IDConstraint] struct {
+        // Version of the JSON-RPC protocol.
+        JSONRPC string `json:"jsonrpc"`
+
+        // The ID of the request this response corresponds to.
+        ID ID[T] `json:"id"`
+
+        // The result of the request. This is optional, but exactly one of Result or Error MUST be set.
+        Result interface{} `json:"result,omitempty"`
+
+        // Error object if the request failed.
+        Error *RPCError `json:"error,omitempty"`
+}
+
+// RPCError represents a structured error object in the MCP/JSON-RPC response.
+//
+// According to the MCP and JSON-RPC 2.0 specifications, an error response
+// must contain at least the "code" and "message" fields.
+// Optionally, the "data" field can be provided for additional context or debugging information.
+//
+// Example:
+//
+//        {
+//          "code": -32601,
+//          "message": "Method not found",
+//          "data": { "method": "unknownMethod" }
+//        }
+//
+// Fields:
+//   - Code:    Error code as an integer. MCP and JSON-RPC use standardized codes for known errors.
+//   - Message: Human-readable message describing the error.
+//   - Data:    Optional additional structured data about the error.
+type RPCError struct {
+        // Code is the error code according to MCP / JSON-RPC specification.
+        // Codes MUST be integers.
+        Code int `json:"code"`
+
+        // Message is a human-readable string describing the error.
+        Message string `json:"message"`
+
+        // Data provides optional additional information about the error.
+        // This field may contain any structured or unstructured data.
+        Data interface{} `json:"data,omitempty"`
+}
+
+// Error implements the standard Go error interface for RPCError.
+//
+// It returns the human-readable error message contained in the RPCError.
+// This allows RPCError to be used as a regular Go error.
+//
+// Example:
+//
+//        var err error = &amp;RPCError{Code: -32601, Message: "Method not found"}
+//        fmt.Println(err.Error()) // Output: Method not found
+func (e *RPCError) Error() string <span class="cov0" title="0">{
+        return e.Message
+}</span>
+
+// NewRPCError creates a new instance of RPCError.
+//
+// Parameters:
+//   - code: integer error code as per MCP / JSON-RPC specification.
+//   - message: human-readable description of the error.
+//   - data: optional additional structured information about the error.
+//
+// Example:
+//
+//        err := NewRPCError(-32601, "Method not found", map[string]string{"method": "unknown"})
+//        fmt.Println(err)
+//
+// Returns:
+//   - A pointer to an RPCError instance.
+func NewRPCError(code int, message string, data interface{}) *RPCError <span class="cov0" title="0">{
+        return &amp;RPCError{
+                Code:    code,
+                Message: message,
+                Data:    data,
+        }
+}</span>
+
+// validate checks whether the JSON-RPC / MCP response object adheres to protocol rules.
+//
+// It ensures the following:
+//   - The JSONRPC version is correct.
+//   - The response ID is present and not empty.
+//   - Exactly one of Result or Error is populated (exclusive).
+//   - If Error is present, it must include both a non-zero code and a non-empty message.
+//
+// Returns:
+//   - nil if the response is valid.
+//   - ValidationError if any rule is violated.
+//
+// Example:
+//
+//        response := NewSuccessResponse(NewID("req-123"), &amp;Result{...})
+//        if err := response.validate(); err != nil {
+//            log.Fatalf("Invalid response: %v", err)
+//        }
+func (r jsonRPCResponse[T]) validate() error <span class="cov8" title="1">{
+        if r.JSONRPC != JSONRPCVersion </span><span class="cov8" title="1">{
+                return &amp;ValidationError{Reason: fmt.Sprintf("invalid JSON-RPC version: expected %q, got %q", JSONRPCVersion, r.JSONRPC)}
+        }</span>
+
+        <span class="cov8" title="1">if r.ID.isEmpty() </span><span class="cov8" title="1">{
+                return &amp;ValidationError{Reason: "response ID must not be empty"}
+        }</span>
+
+        // MCP / JSON-RPC rule: must have exactly one of result or error
+        <span class="cov8" title="1">if r.Result != nil &amp;&amp; r.Error != nil </span><span class="cov8" title="1">{
+                return &amp;ValidationError{Reason: "response MUST NOT contain both result and error"}
+        }</span>
+        <span class="cov8" title="1">if r.Result == nil &amp;&amp; r.Error == nil </span><span class="cov8" title="1">{
+                return &amp;ValidationError{Reason: "response MUST contain either result or error"}
+        }</span>
+
+        // Validate error object if present
+        <span class="cov8" title="1">if r.Error != nil &amp;&amp; r.Error.Message == "" </span><span class="cov8" title="1">{
+                return &amp;ValidationError{Reason: "error must contain non-empty message"}
+        }</span>
+
+        <span class="cov8" title="1">return nil</span>
+}
+
+// UnmarshalJSON deserializes the JSON data into a JSONRPCResponse object,
+// and validates the response according to MCP/JSON-RPC specifications.
+//
+// This method ensures that even when deserialized, the response adheres to protocol rules.
+// It will return an error if the JSON is invalid or if the response structure fails validation.
+//
+// Parameters:
+//   - data: JSON-encoded byte slice to be deserialized.
+//
+// Returns:
+//   - An error if deserialization or validation fails, nil otherwise.
+//
+// Example:
+//
+//        var resp JSONRPCResponse[string, MyResult]
+//        err := json.Unmarshal([]byte(rawJSON), &amp;resp)
+//        if err != nil {
+//            log.Fatalf("Invalid response: %v", err)
+//        }
+func (r *jsonRPCResponse[T]) UnmarshalJSON(data []byte) error <span class="cov8" title="1">{
+        if len(data) == 0 </span><span class="cov8" title="1">{
+                return ErrEmptyJSONData
+        }</span>
+
+        <span class="cov8" title="1">type responseNoMethods jsonRPCResponse[T]
+        aux := &amp;struct {
+                responseNoMethods
+        }{}
+
+        if err := json.Unmarshal(data, aux); err != nil </span><span class="cov8" title="1">{
+                return err
+        }</span>
+
+        <span class="cov8" title="1">temp := jsonRPCResponse[T](aux.responseNoMethods)
+        if err := temp.validate(); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov8" title="1">*r = temp
+        return nil</span>
+
+}
+
+func (r *jsonRPCResponse[T]) GetID() any <span class="cov8" title="1">{
+        return r.ID.Value
+}</span>
+
+func (r *jsonRPCResponse[T]) SetID(v any) error <span class="cov8" title="1">{
+        val, ok := v.(T)
+        if !ok </span><span class="cov8" title="1">{
+                return fmt.Errorf("invalid ID type: expected %T, got %T", *new(T), v)
+        }</span>
+        <span class="cov8" title="1">r.ID = ID[T]{Value: val}
+        return nil</span>
+}
+func (r *jsonRPCResponse[T]) GetResult() interface{} <span class="cov8" title="1">{
+        return r.Result
+}</span>
+
+func (r *jsonRPCResponse[T]) SetResult(v interface{}) error <span class="cov8" title="1">{
+        r.Result = v
+        return nil
+}</span>
+
+func (r *jsonRPCResponse[T]) GetError() *RPCError <span class="cov8" title="1">{
+        return r.Error
+}</span>
+
+func (r *jsonRPCResponse[T]) SetError(err *RPCError) <span class="cov8" title="1">{
+        r.Error = err
+}</span>
+
+func (r *jsonRPCResponse[T]) HasResult() bool <span class="cov8" title="1">{
+        return r.Result != nil
+}</span>
+
+func (r *jsonRPCResponse[T]) HasError() bool <span class="cov8" title="1">{
+        return r.Error != nil
+}</span>
+
+type Response interface {
+        GetID() any
+        SetID(any) error
+        GetResult() interface{}
+        SetResult(interface{}) error
+        GetError() *RPCError
+        SetError(*RPCError)
+        HasResult() bool
+        HasError() bool
+}
+
+func NewResponse[T IDConstraint](id T, result interface{}) Response <span class="cov0" title="0">{
+        return &amp;jsonRPCResponse[T]{
+                JSONRPC: JSONRPCVersion,
+                ID:      ID[T]{Value: id},
+                Result:  result,
+        }
+}</span>
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

@@ -1,268 +1,207 @@
-package protocol_test
+package protocol
 
 import (
 	"encoding/json"
-	"errors"
+	"strings"
 	"sync"
 	"testing"
-
-	"github.com/marketconnect/mcp-go/protocol"
 )
 
-func TestNewID(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    interface{}
-		expected interface{}
-	}{
-		{"Int ID", 123, 123},
-		{"String ID", "abc", "abc"},
+func TestNewIDCreatesCorrectValue(t *testing.T) {
+	IntegerID := newID(42)
+	if IntegerID.Value != 42 {
+		t.Errorf("Expected 42, got %v", IntegerID.Value)
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			switch v := tt.input.(type) {
-			case int:
-				id := protocol.NewID(v)
-				if id.Value != tt.expected {
-					t.Errorf("expected ID value %v, got %v", tt.expected, id.Value)
-				}
-			case string:
-				id := protocol.NewID(v)
-				if id.Value != tt.expected {
-					t.Errorf("expected ID value %q, got %v", tt.expected, id.Value)
-				}
-			}
-		})
+	StringID := newID("custom")
+	if StringID.Value != "custom" {
+		t.Errorf("Expected 'custom', got %v", StringID.Value)
 	}
 }
 
-func TestNextIntIDUniqueness(t *testing.T) {
-	id1 := protocol.NextIntID()
-	id2 := protocol.NextIntID()
+func TestIsEmptyDetectsZeroValues(t *testing.T) {
+	EmptyIntID := ID[int64]{}
+	if !EmptyIntID.isEmpty() {
+		t.Errorf("Expected int64 zero to be empty")
+	}
 
-	if id1.Equal(id2) {
-		t.Errorf("expected unique IDs, but got duplicates for %v and %v", id1, id2)
+	NonEmptyIntID := ID[int64]{Value: 1}
+	if NonEmptyIntID.isEmpty() {
+		t.Errorf("Expected non-zero int64 to be not empty")
+	}
+
+	EmptyStringID := ID[string]{}
+	if !EmptyStringID.isEmpty() {
+		t.Errorf("Expected empty string to be empty")
+	}
+
+	NonEmptyStringID := ID[string]{Value: "abc"}
+	if NonEmptyStringID.isEmpty() {
+		t.Errorf("Expected non-empty string to be not empty")
 	}
 }
 
-func TestNextIntIDConcurrency(t *testing.T) {
-	const goroutines = 100
-	ids := make(chan int64, goroutines)
+func TestNextIntIDGeneratesUniqueValues(t *testing.T) {
+	Seen := make(map[int64]struct{})
+	var Mutex sync.Mutex
+	var WaitGroup sync.WaitGroup
 
-	var wg sync.WaitGroup
-	wg.Add(goroutines)
-
-	for i := 0; i < goroutines; i++ {
+	for i := 0; i < 10; i++ {
+		WaitGroup.Add(1)
 		go func() {
-			defer wg.Done()
-			id := protocol.NextIntID()
-			ids <- id.Value
+			defer WaitGroup.Done()
+			for j := 0; j < 100; j++ {
+				ID := NextIntID()
+				Mutex.Lock()
+				if _, Exists := Seen[ID.Value]; Exists {
+					t.Errorf("Duplicate ID generated: %d", ID.Value)
+				}
+				Seen[ID.Value] = struct{}{}
+				Mutex.Unlock()
+			}
 		}()
 	}
+	WaitGroup.Wait()
+}
 
-	wg.Wait()
-	close(ids)
-
-	seen := make(map[int64]struct{})
-	for id := range ids {
-		if _, exists := seen[id]; exists {
-			t.Errorf("duplicate ID generated: %v", id)
-		}
-		seen[id] = struct{}{}
+func TestNextStringIDReturnsPrefixedString(t *testing.T) {
+	ID := NextStringID()
+	if !strings.HasPrefix(ID.Value, "req-") {
+		t.Errorf("Expected string ID to start with 'req-', got: %s", ID.Value)
 	}
 }
 
-func TestNextStringIDUniqueness(t *testing.T) {
-	id1 := protocol.NextStringID()
-	id2 := protocol.NextStringID()
+func TestMarshalJSONReturnsPrimitiveValue(t *testing.T) {
+	id := ID[int64]{Value: 123}
+	Data, Err := json.Marshal(id)
+	if Err != nil {
+		t.Fatalf("Failed to marshal ID: %v", Err)
+	}
+	if string(Data) != "123" {
+		t.Errorf("Expected '123', got %s", string(Data))
+	}
 
-	if id1.Equal(id2) {
-		t.Error("expected unique string IDs, but got duplicates")
+	StringID := ID[string]{Value: "test"}
+	Data, Err = json.Marshal(StringID)
+	if Err != nil {
+		t.Fatalf("Failed to marshal string ID: %v", Err)
+	}
+	if string(Data) != `"test"` {
+		t.Errorf(`Expected '"test"', got %s`, string(Data))
 	}
 }
 
-func TestIDTypeIsEmpty(t *testing.T) {
-	tests := []struct {
-		name     string
-		id       interface{}
-		expected bool
-	}{
-		{"Empty int ID", protocol.NewID(0), true},
-		{"Empty string ID", protocol.NewID(""), true},
-		{"Non-empty int ID", protocol.NewID(42), false},
+func TestUnmarshalJSONWithValidInput(t *testing.T) {
+	var IntID ID[int64]
+	Err := json.Unmarshal([]byte("456"), &IntID)
+	if Err != nil {
+		t.Fatalf("Unmarshal failed: %v", Err)
+	}
+	if IntID.Value != 456 {
+		t.Errorf("Expected 456, got %v", IntID.Value)
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			switch v := tt.id.(type) {
-			case protocol.IDType[int]:
-				if v.IsEmpty() != tt.expected {
-					t.Errorf("expected IsEmpty to be %v, got %v", tt.expected, v.IsEmpty())
-				}
-			case protocol.IDType[string]:
-				if v.IsEmpty() != tt.expected {
-					t.Errorf("expected IsEmpty to be %v, got %v", tt.expected, v.IsEmpty())
-				}
-			}
-		})
+	var StrID ID[string]
+	Err = json.Unmarshal([]byte(`"req-789"`), &StrID)
+	if Err != nil {
+		t.Fatalf("Unmarshal failed: %v", Err)
 	}
-}
-func TestIDTypeEqual(t *testing.T) {
-	tests := []struct {
-		name     string
-		id1      interface{}
-		id2      interface{}
-		expected bool
-	}{
-		{"Equal int IDs", protocol.NewID(42), protocol.NewID(42), true},
-		{"Different int IDs", protocol.NewID(42), protocol.NewID(43), false},
-		{"Equal string IDs", protocol.NewID("foo"), protocol.NewID("foo"), true},
-		{"Different string IDs", protocol.NewID("foo"), protocol.NewID("bar"), false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			switch v1 := tt.id1.(type) {
-			case protocol.IDType[int]:
-				v2 := tt.id2.(protocol.IDType[int])
-				if v1.Equal(v2) != tt.expected {
-					t.Errorf("expected Equal to be %v, got %v", tt.expected, v1.Equal(v2))
-				}
-			case protocol.IDType[string]:
-				v2 := tt.id2.(protocol.IDType[string])
-				if v1.Equal(v2) != tt.expected {
-					t.Errorf("expected Equal to be %v, got %v", tt.expected, v1.Equal(v2))
-				}
-			}
-		})
+	if StrID.Value != "req-789" {
+		t.Errorf("Expected 'req-789', got %v", StrID.Value)
 	}
 }
 
-func TestIDTypeString(t *testing.T) {
-	tests := []struct {
-		name     string
-		id       interface{}
-		expected string
-	}{
-		{"Int ID to string", protocol.NewID(42), "42"},
-		{"String ID to string", protocol.NewID("abc"), "abc"},
+func TestUnmarshalJSONRejectsEmptyValues(t *testing.T) {
+	var EmptyStrID ID[string]
+	Err := json.Unmarshal([]byte(`""`), &EmptyStrID)
+	if Err == nil {
+		t.Fatalf("Expected error for empty string, got nil")
+	}
+	if Err != ErrEmptyRequestID {
+		t.Errorf("Expected ErrEmptyRequestID, got %v", Err)
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			switch v := tt.id.(type) {
-			case protocol.IDType[int]:
-				if v.String() != tt.expected {
-					t.Errorf("expected %q, got %q", tt.expected, v.String())
-				}
-			case protocol.IDType[string]:
-				if v.String() != tt.expected {
-					t.Errorf("expected %q, got %q", tt.expected, v.String())
-				}
-			}
-		})
+	var EmptyIntID ID[int64]
+	Err = json.Unmarshal([]byte("0"), &EmptyIntID)
+	if Err == nil {
+		t.Fatalf("Expected error for zero int, got nil")
+	}
+	if Err != ErrEmptyRequestID {
+		t.Errorf("Expected ErrEmptyRequestID, got %v", Err)
 	}
 }
 
-func TestIDTypeMarshalJSON(t *testing.T) {
-	tests := []struct {
-		name     string
-		id       interface{}
-		expected string
-	}{
-		{"Marshal int ID", protocol.NewID(42), "42"},
-		{"Marshal string ID", protocol.NewID("abc"), `"abc"`},
+func TestUnmarshalJSONReturnsInvalidIDErrorForGarbage(t *testing.T) {
+	var ID ID[int64]
+	Err := json.Unmarshal([]byte(`{}`), &ID)
+	if Err == nil {
+		t.Fatalf("Expected error for invalid input, got nil")
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var data []byte
-			var err error
-			switch v := tt.id.(type) {
-			case protocol.IDType[int]:
-				data, err = json.Marshal(v)
-			case protocol.IDType[string]:
-				data, err = json.Marshal(v)
-			}
-			if err != nil {
-				t.Fatalf("failed to marshal ID: %v", err)
-			}
-			if string(data) != tt.expected {
-				t.Errorf("expected JSON %s, got %s", tt.expected, string(data))
-			}
-		})
-	}
-}
-func TestIDTypeUnmarshalJSON(t *testing.T) {
-	var id protocol.IDType[int]
-	data := []byte("42")
-	if err := json.Unmarshal(data, &id); err != nil {
-		t.Fatalf("failed to unmarshal ID: %v", err)
-	}
-	if id.Value != 42 {
-		t.Errorf("expected ID value 42, got %v", id.Value)
-	}
-
-	var idStr protocol.IDType[string]
-	dataStr := []byte(`"abc"`)
-	if err := json.Unmarshal(dataStr, &idStr); err != nil {
-		t.Fatalf("failed to unmarshal string ID: %v", err)
-	}
-	if idStr.Value != "abc" {
-		t.Errorf(`expected ID value "abc", got %v`, idStr.Value)
+	_, IsTyped := Err.(*InvalidIDError)
+	if !IsTyped {
+		t.Errorf("Expected InvalidIDError, got %T", Err)
 	}
 }
 
-func TestIDTypeUnmarshalJSONEmptyID(t *testing.T) {
-	var id protocol.IDType[int]
-	data := []byte("0")
-	err := json.Unmarshal(data, &id)
+func TestNextIntID(t *testing.T) {
+	id1 := NextIntID()
+	id2 := NextIntID()
 
-	if err == nil {
-		t.Fatal("expected error for empty int ID, got nil")
-	}
-
-	if !errors.Is(err, protocol.ErrEmptyRequestID) {
-		t.Errorf("expected ErrEmptyRequestID, got %v", err)
-	}
-
-	var idStr protocol.IDType[string]
-	dataStr := []byte(`""`)
-	err = json.Unmarshal(dataStr, &idStr)
-
-	if err == nil {
-		t.Fatal("expected error for empty string ID, got nil")
-	}
-
-	if !errors.Is(err, protocol.ErrEmptyRequestID) {
-		t.Errorf("expected ErrEmptyRequestID, got %v", err)
-	}
-}
-func TestIDTypeUnmarshalJSONInvalidJSON(t *testing.T) {
-	var id protocol.IDType[int]
-	data := []byte(`{}`)
-
-	err := json.Unmarshal(data, &id)
-
-	if err == nil {
-		t.Fatal("expected error for invalid JSON, got nil")
-	}
-
-	var invalidIDErr *protocol.InvalidIDError
-	if !errors.As(err, &invalidIDErr) {
-		t.Errorf("expected InvalidIDError, got %v", err)
+	// Проверяем, что ID уникальные и увеличиваются
+	if id1.Value >= id2.Value {
+		t.Errorf("Expected NextIntID to generate increasing values, got %d, then %d", id1.Value, id2.Value)
 	}
 }
 
-func BenchmarkNextIntID(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		_ = protocol.NextIntID()
+func TestNextStringID(t *testing.T) {
+	id1 := NextStringID()
+	id2 := NextStringID()
+
+	// Проверяем, что ID имеют ожидаемую форму
+	if id1.Value == "" || id1.Value[0:4] != "req-" {
+		t.Errorf("Expected NextStringID to start with 'req-', got %s", id1.Value)
+	}
+
+	// Проверяем, что ID уникальные
+	if id1.Value == id2.Value {
+		t.Errorf("Expected NextStringID to generate unique values, got %s twice", id1.Value)
 	}
 }
 
-func BenchmarkNextStringID(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		_ = protocol.NextStringID()
+func TestMarshalJSON(t *testing.T) {
+	// ID с integer
+	intID := newID(42)
+	intData, err := intID.MarshalJSON()
+	if err != nil {
+		t.Fatalf("Error marshaling int ID: %v", err)
+	}
+	if string(intData) != "42" {
+		t.Errorf("Expected marshaled int ID to be '42', got %s", string(intData))
+	}
+
+	// ID со string
+	strID := newID("test-id")
+	strData, err := strID.MarshalJSON()
+	if err != nil {
+		t.Fatalf("Error marshaling string ID: %v", err)
+	}
+	if string(strData) != `"test-id"` {
+		t.Errorf("Expected marshaled string ID to be '\"test-id\"', got %s", string(strData))
+	}
+
+	// Проверка, что MarshalJSON корректно сериализует ID как примитивное значение
+	type Container struct {
+		ID ID[string] `json:"id"`
+	}
+
+	container := Container{ID: newID("serialized-id")}
+	containerData, err := json.Marshal(container)
+	if err != nil {
+		t.Fatalf("Error marshaling container: %v", err)
+	}
+
+	expected := `{"id":"serialized-id"}`
+	if string(containerData) != expected {
+		t.Errorf("Expected marshaled container to be '%s', got '%s'", expected, string(containerData))
 	}
 }
